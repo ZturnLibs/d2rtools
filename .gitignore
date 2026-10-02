@@ -1,0 +1,6 @@
+node_modules/
+src/.ztron/
+frontend/dist/
+native/
+.env
+*.log

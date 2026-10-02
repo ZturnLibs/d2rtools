@@ -1,0 +1,10 @@
+{
+  "identifier": "main",
+  "description": "Main window capabilities. All D2R filesystem/process work runs in backend app:* commands (not ACL-gated); core:default covers event listen/Channel used by the frontend.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default"
+  ]
+}

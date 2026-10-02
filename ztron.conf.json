@@ -1,0 +1,15 @@
+{
+  "entry": "src/main.ts",
+  "frontend": "frontend",
+  "identifier": "com.zyj.d2rbox",
+  "version": "0.1.0",
+  "windows": [
+    {
+      "label": "main",
+      "title": "D2R 工具箱",
+      "url": "frontend",
+      "width": 1280,
+      "height": 800
+    }
+  ]
+}

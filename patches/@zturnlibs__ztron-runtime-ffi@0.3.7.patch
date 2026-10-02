@@ -1,0 +1,20 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 88fe581c5af42c7ecb78b2a4667a8ad1207e90f3..366633249734145e1ae80597a5bf3d400f0d02bf 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -1,6 +1,2 @@
+-export { FfiRuntime, FfiWebviewHandle, NativeHandleKind } from "./adapter.js";
+-export type { FfiRuntimeOptions } from "./adapter.js";
+-export { loadWebviewLibrary } from "./webview.js";
+-export type { WebviewLibrary } from "./webview.js";
+ export { HostRuntime, HostWebviewHandle } from "./host.js";
+ export type { HostRuntimeOptions } from "./host.js";
+diff --git a/dist/index.js b/dist/index.js
+index bf57756f2d408cbdaf9cc306d66c81de01fb9875..5a950338098b14079ee754b46d89d2beddf42b67 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1,4 +1,2 @@
+-export { FfiRuntime, FfiWebviewHandle, NativeHandleKind } from "./adapter.js";
+-export { loadWebviewLibrary } from "./webview.js";
+ export { HostRuntime, HostWebviewHandle } from "./host.js";
+ //# sourceMappingURL=index.js.map
