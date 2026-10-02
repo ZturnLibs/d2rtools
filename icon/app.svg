@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- tile background: near-black ember char -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#26140b"/>
+      <stop offset="1" stop-color="#0e0805"/>
+    </linearGradient>
+    <!-- ember halo behind the cube -->
+    <radialGradient id="halo" cx="0.5" cy="0.42" r="0.62">
+      <stop offset="0" stop-color="#ff7a1e" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#c33d0c" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <!-- cube faces -->
+    <linearGradient id="top" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd98a"/>
+      <stop offset="1" stop-color="#e89a3a"/>
+    </linearGradient>
+    <linearGradient id="left" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c2651f"/>
+      <stop offset="1" stop-color="#7c3a10"/>
+    </linearGradient>
+    <linearGradient id="right" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8f3f12"/>
+      <stop offset="1" stop-color="#55250a"/>
+    </linearGradient>
+    <!-- ember gem -->
+    <radialGradient id="gem" cx="0.5" cy="0.35" r="0.8">
+      <stop offset="0" stop-color="#fff3c4"/>
+      <stop offset="0.45" stop-color="#ffb43c"/>
+      <stop offset="1" stop-color="#e0560f"/>
+    </radialGradient>
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="gemGlow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="4.5"/>
+    </filter>
+  </defs>
+
+  <!-- tile -->
+  <rect x="4" y="4" width="248" height="248" rx="52" fill="url(#bg)"/>
+  <rect x="4" y="4" width="248" height="248" rx="52" fill="url(#halo)"/>
+  <rect x="7.5" y="7.5" width="241" height="241" rx="48.5" fill="none"
+        stroke="#ffa046" stroke-opacity="0.22" stroke-width="2"/>
+
+  <!-- ember glow pooled under the cube -->
+  <ellipse cx="128" cy="204" rx="64" ry="14" fill="#ff7222" opacity="0.35" filter="url(#soft)"/>
+
+  <!-- gem glow + gem (floats above the cube) -->
+  <g>
+    <circle cx="128" cy="46" r="13" fill="#ffb040" opacity="0.85" filter="url(#gemGlow)"/>
+    <path d="M128 30 L142 46 L128 62 L114 46 Z" fill="url(#gem)"/>
+    <path d="M128 30 L142 46 L128 46 Z" fill="#ffffff" opacity="0.35"/>
+  </g>
+
+  <!-- horadric cube (isometric) -->
+  <g stroke="#1a0d05" stroke-opacity="0.55" stroke-width="2" stroke-linejoin="round">
+    <path d="M128 78 L200 118 L128 158 L56 118 Z" fill="url(#top)"/>
+    <path d="M56 118 L128 158 L128 214 L56 174 Z" fill="url(#left)"/>
+    <path d="M128 158 L200 118 L200 174 L128 214 Z" fill="url(#right)"/>
+  </g>
+  <!-- engraved rune circle on the top face (fine detail, vanishes at small sizes) -->
+  <g opacity="0.28" fill="none" stroke="#5a2c08" stroke-width="3">
+    <ellipse cx="128" cy="118" rx="34" ry="17"/>
+    <ellipse cx="128" cy="118" rx="20" ry="10"/>
+    <path d="M128 101 L145 118 L128 135 L111 118 Z"/>
+  </g>
+</svg>

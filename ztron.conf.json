@@ -6,7 +6,8 @@
   "productName": "D2R工具箱",
   "version": "0.1.0",
   "bundle": {
-    "targets": ["nsis"]
+    "targets": ["nsis"],
+    "icon": ["icon/app-icon.png"]
   },
   "windows": [
     {

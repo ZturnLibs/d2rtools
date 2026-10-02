@@ -5,3 +5,4 @@ native/
 .env
 *.log
 dist/
+icon/.render/
