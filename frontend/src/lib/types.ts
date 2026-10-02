@@ -18,3 +18,10 @@ export type ListBackupsResult = KnownCommands["d2r:listBackups"]["result"];
 export type BackupMetaView = ListBackupsResult["backups"][number];
 export type StashPreflightView = KnownCommands["d2r:stashPreflight"]["result"];
 export type StashSlot = "soft" | "hard";
+
+// — M3 作者脚本 / 存档转移 —
+export type ModScriptsResult = KnownCommands["d2r:modScripts"]["result"];
+export type ScriptInfoView = ModScriptsResult["mods"][number]["scripts"][number];
+export type ListCharactersResult = KnownCommands["d2r:listCharacters"]["result"];
+export type CharacterView = ListCharactersResult["characters"][number];
+export type TransferResultView = KnownCommands["d2r:transferCharacters"]["result"];

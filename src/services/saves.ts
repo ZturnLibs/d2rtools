@@ -170,7 +170,7 @@ export async function scanSaveOverview(
 // Backup store: %APPDATA%\com.zyj.d2rbox\backups\<id>\{meta.json, slots\}
 // ---------------------------------------------------------------------------
 
-export type BackupTrigger = "manual" | "auto-launch" | "pre-restore" | "stash";
+export type BackupTrigger = "manual" | "auto-launch" | "pre-restore" | "stash" | "transfer";
 
 export interface BackupMeta {
   id: string;
@@ -434,6 +434,187 @@ export async function restoreBackup(opts: {
     await mirrorInto(src, dst, s.slot === "root" ? ["mods"] : []);
   }
   return { ok: true, preRestoreId };
+}
+
+// ---------------------------------------------------------------------------
+// 角色转移 (M3) — 主存档 ↔ mod 存档之间搬 .d2s 及其伴生文件
+// ---------------------------------------------------------------------------
+
+/** 单个合法文件名（路径段），允许空格与中文，拒绝分隔符与 .. */
+function isFileName(name: string): boolean {
+  return (
+    name.length > 0 &&
+    name.length <= 128 &&
+    name !== "." &&
+    name !== ".." &&
+    !/[\\/:*?"<>|]/.test(name)
+  );
+}
+
+/** .d2s 角色的伴生文件后缀（同名 stem） */
+const COMPANION_SUFFIXES = [
+  ".ctl", ".key", ".ma0", ".ma1", ".ma2", ".ma3", ".map", ".d2s.backup",
+] as const;
+
+export interface CharacterInfo {
+  /** stem：`Amazon_01.d2s` → `Amazon_01` */
+  name: string;
+  d2sName: string;
+  size: number;
+  mtime: number;
+  /** 伴生文件名（.ctl/.key/.ma0-3/.map/.d2s.backup） */
+  companions: { name: string; size: number }[];
+}
+
+/** 列出某存档组里的角色（顶层 .d2s + 同名伴生文件），按名字排序。 */
+export async function listCharacters(
+  saveDir: string,
+  slot: SaveSlot,
+): Promise<{ slot: SaveSlot; path: string; exists: boolean; characters: CharacterInfo[] }> {
+  if (!isSaveSlot(slot)) throw new Error(`非法存档范围：${slot}`);
+  const dir = slotSourcePath(saveDir, slot);
+  if (!(await pathExists(dir))) {
+    return { slot, path: dir, exists: false, characters: [] };
+  }
+  const files = await statFiles(dir); // top-level only, sorted
+  const byStem = new Map<string, { d2s?: SaveFileEntry; companions: SaveFileEntry[] }>();
+  for (const f of files) {
+    const lower = f.name.toLowerCase();
+    if (lower.endsWith(".d2s")) {
+      const stem = f.name.slice(0, -4);
+      if (!isFileName(stem)) continue;
+      const rec = byStem.get(stem) ?? { companions: [] };
+      rec.d2s = f;
+      byStem.set(stem, rec);
+      continue;
+    }
+    const m = /\.(?:ctl|key|ma[0-3]|map)$/.exec(lower)?.[0]
+      ?? (lower.endsWith(".d2s.backup") ? ".d2s.backup" : null);
+    if (!m) continue;
+    const stem = f.name.slice(0, f.name.length - m.length);
+    if (!isFileName(stem) || stem === "") continue;
+    const rec = byStem.get(stem) ?? { companions: [] };
+    rec.companions.push(f);
+    byStem.set(stem, rec);
+  }
+  const characters: CharacterInfo[] = [];
+  for (const [stem, rec] of byStem) {
+    if (!rec.d2s) continue; // 孤儿伴生文件（无 .d2s）不作为角色暴露
+    characters.push({
+      name: stem,
+      d2sName: rec.d2s.name,
+      size: rec.d2s.size,
+      mtime: rec.d2s.mtime,
+      companions: rec.companions.map((c) => ({ name: c.name, size: c.size })),
+    });
+  }
+  characters.sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
+  return { slot, path: dir, exists: true, characters };
+}
+
+export interface TransferResult {
+  ok: boolean;
+  backupId: string | null;
+  characters: number;
+  files: number;
+  mode: "copy" | "move";
+}
+
+/**
+ * 在两个存档组之间转移角色（.d2s + 全部同名伴生文件）。写前置：
+ * 游戏运行中拒绝；重名冲突拒绝并列出名单；执行前对源/目标两组做
+ * trigger="transfer" 的自动快照（回滚点）。move 模式在全部复制成功后
+ * 才删除源文件。
+ */
+export async function transferCharacters(opts: {
+  saveDir: string;
+  fromSlot: SaveSlot;
+  toSlot: SaveSlot;
+  names: string[];
+  mode: "copy" | "move";
+  backupKeep: number;
+}): Promise<TransferResult> {
+  if (await isGameRunning()) {
+    throw new Error("D2R.exe 正在运行，请先退出游戏再转移存档");
+  }
+  if (!isSaveSlot(opts.fromSlot)) throw new Error(`非法存档范围：${opts.fromSlot}`);
+  if (!isSaveSlot(opts.toSlot)) throw new Error(`非法存档范围：${opts.toSlot}`);
+  if (opts.fromSlot === opts.toSlot) throw new Error("源存档组与目标存档组相同");
+  if (opts.mode !== "copy" && opts.mode !== "move") throw new Error(`非法转移模式：${opts.mode}`);
+  const names = [...new Set(opts.names)];
+  if (names.length === 0) throw new Error("未选择要转移的角色");
+  for (const n of names) {
+    if (!isFileName(n)) throw new Error(`非法角色名：${JSON.stringify(n)}`);
+  }
+
+  const fromDir = slotSourcePath(opts.saveDir, opts.fromSlot);
+  const toDir = slotSourcePath(opts.saveDir, opts.toSlot);
+  if (!(await pathExists(fromDir))) throw new Error(`源存档目录不存在：${fromDir}`);
+  if (!(await pathExists(toDir))) {
+    await tjs.makeDir(toDir, { recursive: true }); // 目标组还没建档 — 建立后照常转移
+  }
+
+  // 源组实际文件（顶层），按 stem 归集
+  const { characters } = await listCharacters(opts.saveDir, opts.fromSlot);
+  const wanted = new Set(names);
+  const chosen = characters.filter((c) => wanted.has(c.name));
+  const notFound = names.filter((n) => !chosen.some((c) => c.name === n));
+  if (notFound.length > 0) {
+    throw new Error(`源存档组中找不到角色：${notFound.join("、")}`);
+  }
+
+  // 重名冲突：目标组已有同名 .d2s
+  const targetChars = await listCharacters(opts.saveDir, opts.toSlot);
+  const conflicts = chosen
+    .filter((c) => targetChars.characters.some((t) => t.name.toLowerCase() === c.name.toLowerCase()))
+    .map((c) => c.name);
+  if (conflicts.length > 0) {
+    throw new Error(`目标存档组已存在同名角色：${conflicts.join("、")}（请先处理重名）`);
+  }
+
+  // 双 scope 预备份（源 + 目标，存在的才拍）— trigger=transfer, 可回滚
+  let backupId: string | null = null;
+  const existing: SaveSlot[] = [];
+  for (const s of [opts.fromSlot, opts.toSlot]) {
+    if (await pathExists(slotSourcePath(opts.saveDir, s))) existing.push(s);
+  }
+  if (existing.length > 0) {
+    const backup = await createBackup({
+      saveDir: opts.saveDir,
+      slots: existing,
+      note: `转移角色前自动备份（${opts.mode === "move" ? "移动" : "复制"} ${chosen.length} 个角色）`,
+      trigger: "transfer",
+      backupKeep: opts.backupKeep,
+    });
+    backupId = backup.id;
+  }
+
+  // 复制（全成功才进 move 删除阶段）
+  let files = 0;
+  for (const c of chosen) {
+    const all = [c.d2sName, ...c.companions.map((x) => x.name)];
+    for (const fname of all) {
+      await tjs.copyFile(joinPath(fromDir, fname), joinPath(toDir, fname));
+      files++;
+    }
+  }
+
+  if (opts.mode === "move") {
+    for (const c of chosen) {
+      const all = [c.d2sName, ...c.companions.map((x) => x.name)];
+      for (const fname of all) {
+        await tjs.remove(joinPath(fromDir, fname), { maxRetries: 3, retryDelay: 200 });
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    backupId,
+    characters: chosen.length,
+    files,
+    mode: opts.mode,
+  };
 }
 
 // ---------------------------------------------------------------------------

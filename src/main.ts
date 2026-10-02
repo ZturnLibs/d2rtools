@@ -77,7 +77,11 @@ new AppBuilder(runtime, "com.zyj.d2rbox")
     app.commandDef(commandDefs.stashPickFile);
     app.commandDef(commandDefs.stashPreflight);
     app.commandDef(commandDefs.stashReplace);
-    console.log("[d2rbox] registered 26 d2r:* commands");
+    app.commandDef(commandDefs.modScripts);
+    app.commandDef(commandDefs.runScript);
+    app.commandDef(commandDefs.listCharacters);
+    app.commandDef(commandDefs.transferCharacters);
+    console.log("[d2rbox] registered 30 d2r:* commands");
   })
   .build()
   .run();

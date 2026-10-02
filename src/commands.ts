@@ -44,8 +44,15 @@ import {
   setBackupNote as setBackupNoteById,
   isGameRunning,
   isSaveSlot,
+  listCharacters,
+  transferCharacters,
 } from "./services/saves.js";
 import { stashPreflight, stashReplace, isStashSlot } from "./services/stash.js";
+import {
+  scanModScripts,
+  runModScript,
+  type ScriptRunLine,
+} from "./services/authscripts.js";
 
 // ---------------------------------------------------------------------------
 // DTO mapper (phantom types in defineCommand stay inline per codegen rules).
@@ -643,6 +650,111 @@ const stashReplaceCmd = defineCommand("d2r:stashReplace", {
   },
 });
 
+// ---------------------------------------------------------------------------
+// 作者脚本 (M3) — mods\<mod>\ 顶层 bat 的扫描与受控运行
+// ---------------------------------------------------------------------------
+
+const modScripts = defineCommand("d2r:modScripts", {
+  args: {} as Record<string, never>,
+  result: {} as {
+    mods: {
+      mod: string;
+      scripts: {
+        name: string;
+        path: string;
+        size: number;
+        mtime: number;
+        sideEffects: { killsGame: boolean; launchesGame: boolean; pauses: boolean };
+        missingTargets: string[];
+        truncated: boolean;
+        b64: string;
+      }[];
+    }[];
+  },
+  handler: async () => {
+    const config = await loadConfig();
+    if (!config.gameDir) throw new Error("请先在设置中配置游戏目录");
+    const installed: string[] = [];
+    for (const m of config.knownMods) {
+      if (await installState(config.gameDir, m.name)) installed.push(m.name);
+    }
+    return scanModScripts(config.gameDir, installed);
+  },
+});
+
+const runScript = defineCommand("d2r:runScript", {
+  args: {} as { modName: string; fileName: string; ch: string },
+  result: {} as { ok: boolean; code: number | null; timedOut: boolean },
+  handler: async (args, ctx) => {
+    const channel = args.ch as unknown as { kind: "channel"; id: number };
+    const handle = ctx.getChannel(channel.id);
+    const config = await loadConfig();
+    if (!config.gameDir) throw new Error("请先在设置中配置游戏目录");
+    try {
+      const r = await runModScript({
+        gameDir: config.gameDir,
+        modName: args.modName,
+        fileName: args.fileName,
+        onLine: (l: ScriptRunLine) => handle?.send(l),
+      });
+      return { ok: true, code: r.code, timedOut: r.timedOut };
+    } finally {
+      handle?.end();
+    }
+  },
+});
+
+// ---------------------------------------------------------------------------
+// 存档转移 (M3) — 主存档 ↔ mod 存档之间的角色搬移
+// ---------------------------------------------------------------------------
+
+const listCharactersCmd = defineCommand("d2r:listCharacters", {
+  args: {} as { slot: string },
+  result: {} as {
+    slot: string;
+    path: string;
+    exists: boolean;
+    characters: {
+      name: string;
+      d2sName: string;
+      size: number;
+      mtime: number;
+      companions: { name: string; size: number }[];
+    }[];
+  },
+  handler: async (args) => {
+    if (!isSaveSlot(args.slot)) throw new Error(`非法存档范围：${args.slot}`);
+    return listCharacters(await saveRoot(), args.slot);
+  },
+});
+
+const transferCharactersCmd = defineCommand("d2r:transferCharacters", {
+  args: {} as {
+    fromSlot: string;
+    toSlot: string;
+    names: string[];
+    mode: string;
+  },
+  result: {} as {
+    ok: boolean;
+    backupId: string | null;
+    characters: number;
+    files: number;
+    mode: string;
+  },
+  handler: async (args) => {
+    const config = await loadConfig();
+    return transferCharacters({
+      saveDir: await saveRoot(),
+      fromSlot: args.fromSlot,
+      toSlot: args.toSlot,
+      names: Array.isArray(args.names) ? args.names : [],
+      mode: args.mode === "move" ? "move" : "copy",
+      backupKeep: config.backupKeep,
+    });
+  },
+});
+
 /** All command defs, individually typed — register each via app.commandDef
  *  (a heterogeneous array would collapse the phantom types to a union). */
 export const commandDefs = {
@@ -672,4 +784,8 @@ export const commandDefs = {
   stashPickFile,
   stashPreflight: stashPreflightCmd,
   stashReplace: stashReplaceCmd,
+  modScripts,
+  runScript,
+  listCharacters: listCharactersCmd,
+  transferCharacters: transferCharactersCmd,
 };

@@ -41,11 +41,18 @@ interface TjsStat {
   readonly isSymlink: boolean;
 }
 
+/** Child-process pipe: a real ReadableStream (getReader works) plus
+ *  convenience text()/bytes() drains (txiki core/process.js). */
+interface TjsProcessReadableStream extends ReadableStream<Uint8Array> {
+  text(): Promise<string>;
+  bytes(): Promise<Uint8Array>;
+}
+
 interface TjsSubprocess {
   pid: number;
   stdin: { write(data: Uint8Array | string): Promise<void>; close(): void } | null;
-  stdout: { text(): Promise<string>; bytes(): Promise<Uint8Array> } | null;
-  stderr: { text(): Promise<string> } | null;
+  stdout: TjsProcessReadableStream | null;
+  stderr: TjsProcessReadableStream | null;
   wait(): Promise<{ exited: boolean; exit_status: number; term_signal: number | null }>;
   kill(sig?: string | number): void;
 }

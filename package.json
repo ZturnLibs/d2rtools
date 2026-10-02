@@ -5,15 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "build": "ztron build",
+    "build": "node scripts/build.mjs",
     "codegen": "ztron codegen",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@zturnlibs/ztron-api": "0.3.7",
-    "@zturnlibs/ztron-core": "0.3.7",
-    "@zturnlibs/ztron-react": "0.3.7",
-    "@zturnlibs/ztron-runtime-ffi": "0.3.7",
+    "@zturnlibs/ztron-api": "0.3.8",
+    "@zturnlibs/ztron-core": "0.3.8",
+    "@zturnlibs/ztron-react": "0.3.8",
+    "@zturnlibs/ztron-runtime-ffi": "0.3.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -24,14 +24,14 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
-    "@zturnlibs/ztron-cli": "0.3.7",
+    "@zturnlibs/ztron-cli": "0.3.8",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.0"
   },
   "pnpm": {
     "patchedDependencies": {
-      "@zturnlibs/ztron-runtime-ffi@0.3.7": "patches/@zturnlibs__ztron-runtime-ffi@0.3.7.patch"
+      "@zturnlibs/ztron-runtime-ffi@0.3.8": "patches/@zturnlibs__ztron-runtime-ffi@0.3.8.patch"
     }
   }
 }

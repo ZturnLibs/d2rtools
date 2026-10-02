@@ -7,10 +7,11 @@ import { invoke, useCommand, errMsg } from "../../lib/ipc";
 import { b64ToBytes, decodeText } from "../../lib/decode";
 import { Modal } from "../../components/Modal";
 import { btnGhost } from "../../App";
-import type { AppConfigView, ModInfo, ProfileView } from "../../lib/types";
+import type { AppConfigView, ModInfo, ProfileView, ScriptInfoView } from "../../lib/types";
 import { SourceList } from "./SourceList";
 import { ModCard } from "./ModCard";
 import { InstallDialog } from "./InstallDialog";
+import { ScriptsDialog } from "./ScriptsDialog";
 import { ProfileBar } from "./ProfileBar";
 import { ParamHelp } from "./ParamHelp";
 
@@ -29,8 +30,10 @@ export function ModManagerPage(props: {
 }) {
   const { config } = props;
   const mods = useCommand("d2r:listMods", {});
+  const scriptsRes = useCommand("d2r:modScripts", {});
   const [installTarget, setInstallTarget] = useState<ModInfo | null>(null);
   const [uninstallTarget, setUninstallTarget] = useState<{ mod: ModInfo; preflight: Preflight } | null>(null);
+  const [scriptsTarget, setScriptsTarget] = useState<{ mod: ModInfo; scripts: ScriptInfoView[] } | null>(null);
   const [readme, setReadme] = useState<{ mod: ModInfo; text: string; encoding: string } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [notice, setNotice] = useState("");
@@ -41,6 +44,18 @@ export function ModManagerPage(props: {
   useEffect(() => {
     mods.refresh();
   }, [config.knownMods]);
+
+  // 作者脚本跟着安装状态走（后端只扫已安装 mod）——listMods 刷新后再拉一次。
+  useEffect(() => {
+    if (mods.data) scriptsRes.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mods.data]);
+
+  const scriptsByMod = useMemo(() => {
+    const map = new Map<string, ScriptInfoView[]>();
+    for (const m of scriptsRes.data?.mods ?? []) map.set(m.mod, m.scripts);
+    return map;
+  }, [scriptsRes.data]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, ModInfo[]>();
@@ -190,10 +205,15 @@ export function ModManagerPage(props: {
                 installed={mods.data?.installed[m.name] ?? false}
                 record={config.installed[m.name]}
                 suggestedArgs={mods.data?.suggestedArgs[m.name] ?? ["-mod", m.name]}
+                scriptsCount={scriptsByMod.get(m.name)?.length}
                 onInstall={() => setInstallTarget(m)}
                 onUninstall={() => void askUninstall(m)}
                 onLaunch={(args) => void launch(m.name, args.slice(2))}
                 onReadme={() => void showReadme(m)}
+                onScripts={() => {
+                  const scripts = scriptsByMod.get(m.name);
+                  if (scripts) setScriptsTarget({ mod: m, scripts });
+                }}
                 onOpenDir={() => void invoke("d2r:openDir", { path: m.sourcePath })}
               />
             ))}
@@ -260,6 +280,15 @@ export function ModManagerPage(props: {
         <Modal wide title="启动参数知识库" onClose={() => setHelpOpen(false)}>
           <ParamHelp />
         </Modal>
+      )}
+
+      {scriptsTarget && (
+        <ScriptsDialog
+          modName={scriptsTarget.mod.name}
+          displayName={scriptsTarget.mod.displayName ?? scriptsTarget.mod.name}
+          scripts={scriptsTarget.scripts}
+          onClose={() => setScriptsTarget(null)}
+        />
       )}
     </div>
   );

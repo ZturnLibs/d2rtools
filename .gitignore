@@ -4,3 +4,4 @@ frontend/dist/
 native/
 .env
 *.log
+dist/

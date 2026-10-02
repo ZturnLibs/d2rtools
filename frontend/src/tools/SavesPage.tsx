@@ -4,14 +4,16 @@
  * button). Restore is a two-step-confirm modal — the backend mirrors the
  * target dir and takes a mandatory pre-restore snapshot first.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke, useCommand, errMsg } from "../lib/ipc";
 import { formatBytes, formatTime } from "../lib/decode";
 import type {
   AppConfigView,
   BackupMetaView,
+  CharacterView,
   SaveGroupView,
   StashPreflightView,
+  TransferResultView,
 } from "../lib/types";
 import { Modal } from "../components/Modal";
 import { btnGhost } from "../App";
@@ -26,6 +28,7 @@ const TRIGGER_LABEL: Record<Trigger, string> = {
   "auto-launch": "启动前",
   "pre-restore": "还原前",
   stash: "仓库替换",
+  transfer: "存档转移",
 };
 
 const TRIGGER_CLASS: Record<Trigger, string> = {
@@ -33,6 +36,7 @@ const TRIGGER_CLASS: Record<Trigger, string> = {
   "auto-launch": "bg-violet-500/15 text-violet-300",
   "pre-restore": "bg-amber-500/15 text-amber-300",
   stash: "bg-emerald-500/15 text-emerald-300",
+  transfer: "bg-rose-500/15 text-rose-300",
 };
 
 function slotLabel(slot: string): string {
@@ -65,6 +69,7 @@ export function SavesPage(props: { config: AppConfigView; refreshConfig: () => v
   const [busy, setBusy] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
   const [restore, setRestore] = useState<BackupMetaView | null>(null);
+  const [transferFrom, setTransferFrom] = useState<string | null>(null);
 
   // prefs — optimistic local copy of config.autoBackup / config.backupKeep
   const [autoBackup, setAutoBackup] = useState(props.config.autoBackup);
@@ -169,7 +174,13 @@ export function SavesPage(props: { config: AppConfigView; refreshConfig: () => v
 
       {overview.error && <Banner tone="red" text={overview.error} onClose={overview.refresh} />}
 
-      {overview.data && <OverviewSection root={overview.data.root} mods={overview.data.mods} />}
+      {overview.data && (
+        <OverviewSection
+          root={overview.data.root}
+          mods={overview.data.mods}
+          onTransfer={(slot) => setTransferFrom(slot)}
+        />
+      )}
 
       {backups.error && <Banner tone="red" text={backups.error} onClose={backups.refresh} />}
       {backups.data && (
@@ -208,6 +219,26 @@ export function SavesPage(props: { config: AppConfigView; refreshConfig: () => v
           onDone={onRestoreDone}
         />
       )}
+
+      {transferFrom && overview.data && (
+        <TransferDialog
+          root={overview.data.root}
+          mods={overview.data.mods}
+          initialFrom={transferFrom}
+          busy={busy}
+          setBusy={setBusy}
+          onClose={() => setTransferFrom(null)}
+          onDone={(r) => {
+            setTransferFrom(null);
+            setInfo(
+              `转移完成：${r.mode === "move" ? "移动" : "复制"} ${r.characters} 个角色（${r.files} 个文件）` +
+                (r.backupId ? `，回滚点：${r.backupId}` : ""),
+            );
+            overview.refresh();
+            backups.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -216,7 +247,11 @@ export function SavesPage(props: { config: AppConfigView; refreshConfig: () => v
 // Overview
 // ---------------------------------------------------------------------------
 
-function OverviewSection(props: { root: SaveGroupView; mods: SaveGroupView[] }) {
+function OverviewSection(props: {
+  root: SaveGroupView;
+  mods: SaveGroupView[];
+  onTransfer: (slot: string) => void;
+}) {
   const { root, mods } = props;
   return (
     <section className="space-y-3">
@@ -227,12 +262,12 @@ function OverviewSection(props: { root: SaveGroupView; mods: SaveGroupView[] }) 
           <div className="mt-1 text-xs text-amber-500/80">请先启动一次游戏让其生成存档目录。</div>
         </div>
       ) : (
-        <RootCard root={root} />
+        <RootCard root={root} onTransfer={() => props.onTransfer(root.slot)} />
       )}
       {mods.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {mods.map((m) => (
-            <ModSaveCard key={m.slot} group={m} />
+            <ModSaveCard key={m.slot} group={m} onTransfer={m.exists ? () => props.onTransfer(m.slot) : undefined} />
           ))}
         </div>
       )}
@@ -240,7 +275,7 @@ function OverviewSection(props: { root: SaveGroupView; mods: SaveGroupView[] }) 
   );
 }
 
-function RootCard(props: { root: SaveGroupView }) {
+function RootCard(props: { root: SaveGroupView; onTransfer: () => void }) {
   const root = props.root;
   const counts = new Map<string, { n: number; bytes: number }>();
   for (const f of root.files) {
@@ -265,6 +300,9 @@ function RootCard(props: { root: SaveGroupView }) {
           <span>
             {root.files.length} 个文件 · {formatBytes(root.totalBytes)}
           </span>
+          <button className={btnGhost + " px-2 py-1 text-xs"} onClick={props.onTransfer}>
+            转移
+          </button>
           <button className={btnGhost + " px-2 py-1 text-xs"} onClick={() => void invoke("d2r:openDir", { path: root.path })}>
             打开
           </button>
@@ -310,19 +348,29 @@ function RootCard(props: { root: SaveGroupView }) {
   );
 }
 
-function ModSaveCard(props: { group: SaveGroupView }) {
+function ModSaveCard(props: { group: SaveGroupView; onTransfer?: () => void }) {
   const g = props.group;
   return (
     <div className="rounded-xl border border-neutral-800 bg-[#0d1017] px-4 py-3.5">
       <div className="flex items-start justify-between gap-2">
         <h4 className="truncate text-sm font-medium text-neutral-100">{g.name}</h4>
         {g.exists && (
-          <button
-            className="shrink-0 text-xs text-neutral-500 transition-colors hover:text-neutral-200"
-            onClick={() => void invoke("d2r:openDir", { path: g.path })}
-          >
-            打开
-          </button>
+          <div className="flex shrink-0 items-center gap-2 text-xs">
+            {props.onTransfer && (
+              <button
+                className="text-neutral-500 transition-colors hover:text-neutral-200"
+                onClick={props.onTransfer}
+              >
+                转移
+              </button>
+            )}
+            <button
+              className="text-neutral-500 transition-colors hover:text-neutral-200"
+              onClick={() => void invoke("d2r:openDir", { path: g.path })}
+            >
+              打开
+            </button>
+          </div>
         )}
       </div>
       <p className="mt-1 text-xs text-neutral-500">
@@ -633,6 +681,189 @@ function RestoreDialog(props: {
         </div>
       )}
       {error && <p className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">{error}</p>}
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function TransferDialog(props: {
+  root: SaveGroupView;
+  mods: SaveGroupView[];
+  initialFrom: string;
+  busy: boolean;
+  setBusy: (b: boolean) => void;
+  onClose: () => void;
+  onDone: (r: TransferResultView) => void;
+}) {
+  const groups = useMemo(
+    () => [props.root, ...props.mods].filter((g) => g.exists),
+    [props.root, props.mods],
+  );
+  const selectCls =
+    "rounded-lg border border-neutral-700 bg-[#11141b] px-3 py-2 text-sm text-neutral-100";
+
+  const [fromSlot, setFromSlot] = useState(props.initialFrom);
+  const [toSlot, setToSlot] = useState("");
+  const [names, setNames] = useState<Set<string>>(new Set());
+  const [mode, setMode] = useState<"copy" | "move">("copy");
+  const [chars, setChars] = useState<CharacterView[] | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [error, setErrorLocal] = useState<string | null>(null);
+
+  // 源组切换 → 重新拉角色列表，清空选择与目标
+  useEffect(() => {
+    let alive = true;
+    setChars(null);
+    setNames(new Set());
+    setToSlot("");
+    setErrorLocal(null);
+    setLoadErr(null);
+    invoke("d2r:listCharacters", { slot: fromSlot })
+      .then((r) => {
+        if (alive) setChars(r.characters);
+      })
+      .catch((e) => {
+        if (alive) setLoadErr(errMsg(e));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [fromSlot]);
+
+  const toggle = (name: string) => {
+    setNames((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const submit = async () => {
+    if (!toSlot || names.size === 0) return;
+    props.setBusy(true);
+    setErrorLocal(null);
+    try {
+      const r = await invoke("d2r:transferCharacters", {
+        fromSlot,
+        toSlot,
+        names: [...names],
+        mode,
+      });
+      props.onDone(r);
+    } catch (err) {
+      setErrorLocal(errMsg(err)); // 游戏运行中 / 重名冲突 — 留在弹窗里看
+      props.setBusy(false);
+    }
+  };
+
+  const fromLabel = slotLabel(fromSlot);
+
+  return (
+    <Modal
+      wide
+      title="存档转移"
+      onClose={props.onClose}
+      footer={
+        <>
+          <button className={btnGhost} onClick={props.onClose}>
+            取消
+          </button>
+          <button
+            className={btnPrimary}
+            disabled={props.busy || !toSlot || names.size === 0 || !chars}
+            onClick={() => void submit()}
+          >
+            {props.busy ? "转移中…" : `开始${mode === "move" ? "移动" : "复制"}（${names.size} 个角色）`}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-3 text-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2">
+            <span className="text-xs text-neutral-500">从</span>
+            <select className={selectCls} value={fromSlot} onChange={(e) => setFromSlot(e.target.value)}>
+              {groups.map((g) => (
+                <option key={g.slot} value={g.slot}>
+                  {slotLabel(g.slot)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="text-neutral-600">→</span>
+          <label className="flex items-center gap-2">
+            <span className="text-xs text-neutral-500">到</span>
+            <select className={selectCls} value={toSlot} onChange={(e) => setToSlot(e.target.value)}>
+              <option value="">选择目标存档组…</option>
+              {groups
+                .filter((g) => g.slot !== fromSlot)
+                .map((g) => (
+                  <option key={g.slot} value={g.slot}>
+                    {slotLabel(g.slot)}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <div className="flex items-center gap-3 text-xs">
+            <label className="flex cursor-pointer items-center gap-1.5">
+              <input type="radio" className="accent-violet-500" checked={mode === "copy"} onChange={() => setMode("copy")} />
+              复制（源保留）
+            </label>
+            <label className="flex cursor-pointer items-center gap-1.5">
+              <input type="radio" className="accent-violet-500" checked={mode === "move"} onChange={() => setMode("move")} />
+              移动（成功后删源）
+            </label>
+          </div>
+        </div>
+
+        <ul className="list-disc space-y-0.5 pl-5 text-xs text-neutral-500">
+          <li>角色连同伴生文件（.ctl/.key/.ma0-3/.map/.d2s.backup）一起转移。</li>
+          <li>转移前会自动备份源、目标两组（快照来源「存档转移」），随时可还原回滚。</li>
+          <li>游戏运行中无法转移；目标已有同名角色会拒绝并列出名单。</li>
+        </ul>
+
+        {loadErr && (
+          <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">{loadErr}</p>
+        )}
+        {error && (
+          <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">{error}</p>
+        )}
+
+        {/* character checklist */}
+        {chars === null ? (
+          !loadErr && <p className="text-xs text-neutral-500">读取角色列表…</p>
+        ) : chars.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-neutral-800 px-4 py-5 text-center text-xs text-neutral-500">
+            {fromLabel}里没有角色（没有顶层 .d2s 文件）。
+          </div>
+        ) : (
+          <div className="max-h-64 space-y-1.5 overflow-auto rounded-lg border border-neutral-800 p-2">
+            {chars.map((c) => (
+              <label
+                key={c.name}
+                className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-neutral-800/50"
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-violet-500"
+                  checked={names.has(c.name)}
+                  onChange={() => toggle(c.name)}
+                />
+                <span className="min-w-0 flex-1 truncate text-sm text-neutral-100">
+                  {c.name}
+                  <span className="ml-2 text-xs text-neutral-500">
+                    {formatBytes(c.size)}
+                    {c.companions.length > 0 && ` ＋${c.companions.length} 伴生`}
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs text-neutral-500">{formatTime(c.mtime)}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
     </Modal>
   );
 }

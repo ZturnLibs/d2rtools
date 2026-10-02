@@ -5,7 +5,19 @@
 import { useState } from "react";
 import { invoke, errMsg } from "../lib/ipc";
 import { formatTime } from "../lib/decode";
+import { APP_VERSION } from "../../../src/services/config.js";
 import type { AppConfigView, ValidationView } from "../lib/types";
+
+// ztron 库版本（只取 package.json 静态数据——tjs 无可查询的运行时版本）。
+// 这些包的 exports 没放 ./package.json 子路径，所以走相对路径进 node_modules。
+import corePkg from "../../../node_modules/@zturnlibs/ztron-core/package.json";
+import reactPkg from "../../../node_modules/@zturnlibs/ztron-react/package.json";
+import ffiPkg from "../../../node_modules/@zturnlibs/ztron-runtime-ffi/package.json";
+const ZTRON_VERSIONS = {
+  core: corePkg.version,
+  react: reactPkg.version,
+  ffi: ffiPkg.version,
+} as const;
 
 const inputCls =
   "w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-neutral-500";
@@ -99,8 +111,12 @@ export function SettingsPage(props: {
       </section>
 
       <section className="border-t border-neutral-800/60 pt-4 text-xs text-neutral-600">
-        <p>存档根目录：%UserProfile%\Saved Games\Diablo II Resurrected（只读展示，M2 存档管家将接管）</p>
-        <p className="mt-1">D2R 工具箱 v0.1.0 · com.zyj.d2rbox · ztron 0.3.7</p>
+        <h2 className="mb-2 text-base font-semibold text-neutral-200">关于</h2>
+        <p>
+          D2R 工具箱 {APP_VERSION} · com.zyj.d2rbox
+          · ztron {ZTRON_VERSIONS.core}（react {ZTRON_VERSIONS.react} / runtime-ffi {ZTRON_VERSIONS.ffi}）
+        </p>
+        <p className="mt-1">存档根目录：%UserProfile%\Saved Games\Diablo II Resurrected</p>
       </section>
     </div>
   );

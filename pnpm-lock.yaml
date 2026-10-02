@@ -5,26 +5,26 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@zturnlibs/ztron-runtime-ffi@0.3.7':
-    hash: 7eizr3daavbib2vx7yw4qzna4a
-    path: patches/@zturnlibs__ztron-runtime-ffi@0.3.7.patch
+  '@zturnlibs/ztron-runtime-ffi@0.3.8':
+    hash: cgo4lpe2opg4uyjkv5plkerpm4
+    path: patches/@zturnlibs__ztron-runtime-ffi@0.3.8.patch
 
 importers:
 
   .:
     dependencies:
       '@zturnlibs/ztron-api':
-        specifier: 0.3.7
-        version: 0.3.7
+        specifier: 0.3.8
+        version: 0.3.8
       '@zturnlibs/ztron-core':
-        specifier: 0.3.7
-        version: 0.3.7
+        specifier: 0.3.8
+        version: 0.3.8
       '@zturnlibs/ztron-react':
-        specifier: 0.3.7
-        version: 0.3.7(react@19.3.0)
+        specifier: 0.3.8
+        version: 0.3.8(react@19.3.0)
       '@zturnlibs/ztron-runtime-ffi':
-        specifier: 0.3.7
-        version: 0.3.7(patch_hash=7eizr3daavbib2vx7yw4qzna4a)
+        specifier: 0.3.8
+        version: 0.3.8(patch_hash=cgo4lpe2opg4uyjkv5plkerpm4)
       react:
         specifier: ^19.0.0
         version: 19.3.0
@@ -51,8 +51,8 @@ importers:
         specifier: ^4.3.0
         version: 4.7.0(vite@6.4.3(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0))
       '@zturnlibs/ztron-cli':
-        specifier: 0.3.7
-        version: 0.3.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)
+        specifier: 0.3.8
+        version: 0.3.8(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)
       tailwindcss:
         specifier: ^4.0.0
         version: 4.3.3
@@ -593,31 +593,34 @@ packages:
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
 
-  '@zturnlibs/ztron-api@0.3.7':
-    resolution: {integrity: sha512-2nGE242hKCxHzV7ZuCanDJ8/iujhdUt2fvzNnFkxwFc2U4R83pn6fMuOGWAKa8HWOk5EqWAvbrawCLQfuK+YvA==}
+  '@zturnlibs/tjs-types@0.3.8':
+    resolution: {integrity: sha512-PRRm0jxTedD/ih9QtEP91ig+nWHhzgqL9mAUx3oZCjy8oYISbRGZFVWM5eziHHwZgwVtbchhTv4DSUI4IrauOA==}
 
-  '@zturnlibs/ztron-cli@0.3.7':
-    resolution: {integrity: sha512-+ZDd4dUTEyhGrpKMDk0CswoOT75sfxrOEI5i9v5hIbodGXO2yKiwB0BlyvBfqyWTWyE3B0UZtwbP3EFAF8zW0w==}
+  '@zturnlibs/ztron-api@0.3.8':
+    resolution: {integrity: sha512-ww+wowGHzFInFAflQMm/r3HYUh5ZU+J6epSLGS7TIptHaOODck+t2PJGbkVupyT92FX3IAyeP6j5fDTROAn30g==}
+
+  '@zturnlibs/ztron-cli@0.3.8':
+    resolution: {integrity: sha512-ZB+kRMQGacvCAWVHmRxqD3LrFqaQdDqJrcI/aJb75v4O8+3gstmtHlabTJ/UjR6ZsuaBipFRiWDYIZhErdj6jQ==}
     hasBin: true
 
-  '@zturnlibs/ztron-core@0.3.7':
-    resolution: {integrity: sha512-ICXH3tOf8Sa73VE6nBXpKMl8iCuRPOg2A+MJh6VRaBta6dNYSFjoawtx74LrqkJTrY/KXNoslJAmfOAfMr1uXw==}
+  '@zturnlibs/ztron-core@0.3.8':
+    resolution: {integrity: sha512-O55bfpn4ruyZbcCpWcWGpTd7mjgUCKX4Ts7E+aZoPIg18uHU6Srew+r2TfJ2eiaaDD8Kt4ZJa8AjWRAV+g90rw==}
 
-  '@zturnlibs/ztron-darwin-arm64@0.3.7':
-    resolution: {integrity: sha512-SqydQ90wXjaW54IMkHPOusRUzm3bHknvtFdcCckYTUp++pOIb4BrL7wmH2iicv1KHx7er03MBeKL8fdCDA1DDA==}
+  '@zturnlibs/ztron-darwin-arm64@0.3.8':
+    resolution: {integrity: sha512-EfF65dkUv4uFdvKETBIIRxn3JeuLyQE4woNO59LWwpZkv76tqVLUFeMxqPNg8pK3XHVH8cAO9fHIsT3MHTGI9Q==}
     cpu: [arm64]
     os: [darwin]
 
-  '@zturnlibs/ztron-inject@0.3.7':
-    resolution: {integrity: sha512-OK7A7w9MgRvs8LGJDCCiAX30gpgo5jrVPeYbCLihSu0Kg0jMH3aRvS94wDSdkoe9DzHWoSEEfzc6RB9UngCL6Q==}
+  '@zturnlibs/ztron-inject@0.3.8':
+    resolution: {integrity: sha512-B8t6E5hpVSwQATwvi4KMRZvtnsgCYW8xn+JTS+lZfnoLA9D+v/5lzrfs/Rqbw6olYVa6M8vdyGKmuSewHrIrTw==}
 
-  '@zturnlibs/ztron-react@0.3.7':
-    resolution: {integrity: sha512-YhIFK4qYF3gdGlhzCpm8gDIBuHIeSsifcpQn/+iO0GTZMkMkyJnQTeXVCDwSzP2G7bHIA8zJu7doFxqcUpC7eg==}
+  '@zturnlibs/ztron-react@0.3.8':
+    resolution: {integrity: sha512-QUf3TuOCCBsmM1yf5vOUV5mGIjKfVq6e2TDFzS7I5tUEV5Sd5lQBQHP++p+iGUemHvf59Ej9HvPvMdgyOf6gBQ==}
     peerDependencies:
       react: '>=18'
 
-  '@zturnlibs/ztron-runtime-ffi@0.3.7':
-    resolution: {integrity: sha512-yNdhZRwQl5Zj/JTfgEWHO1zav7IacyduLm7rQNLD1D0kAxsSq/rw8MC1coLW0tQNXbuIqaeh3X1MVJ7teOkNrQ==}
+  '@zturnlibs/ztron-runtime-ffi@0.3.8':
+    resolution: {integrity: sha512-lndRc8w0GM8x+YLsJvhFVknTE3jqdMI/zl6yI3VCXRftgzqvQ8yq1ctsx2T0gA1IM5ybiUWvmRao6Z5MsWELMw==}
 
   baseline-browser-mapping@2.11.27:
     resolution: {integrity: sha512-ElY12DaROGuan+lMmZ8Cvo/ZUbXPe7Enc/9VU/b1T3Kp4dwytRcNdR8DoSJN5SNJT/CuvcCA0DHDVmMOCePdRQ==}
@@ -1310,17 +1313,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@zturnlibs/ztron-api@0.3.7': {}
+  '@zturnlibs/tjs-types@0.3.8': {}
 
-  '@zturnlibs/ztron-cli@0.3.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)':
+  '@zturnlibs/ztron-api@0.3.8': {}
+
+  '@zturnlibs/ztron-cli@0.3.8(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)':
     dependencies:
-      '@zturnlibs/ztron-core': 0.3.7
-      '@zturnlibs/ztron-inject': 0.3.7
+      '@zturnlibs/ztron-core': 0.3.8
+      '@zturnlibs/ztron-inject': 0.3.8
       esbuild: 0.25.12
       typescript: 5.9.3
       vite: 6.4.3(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.32.0)
     optionalDependencies:
-      '@zturnlibs/ztron-darwin-arm64': 0.3.7
+      '@zturnlibs/ztron-darwin-arm64': 0.3.8
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -1334,23 +1339,24 @@ snapshots:
       - tsx
       - yaml
 
-  '@zturnlibs/ztron-core@0.3.7':
+  '@zturnlibs/ztron-core@0.3.8':
     dependencies:
-      '@zturnlibs/ztron-inject': 0.3.7
+      '@zturnlibs/tjs-types': 0.3.8
+      '@zturnlibs/ztron-inject': 0.3.8
 
-  '@zturnlibs/ztron-darwin-arm64@0.3.7':
+  '@zturnlibs/ztron-darwin-arm64@0.3.8':
     optional: true
 
-  '@zturnlibs/ztron-inject@0.3.7': {}
+  '@zturnlibs/ztron-inject@0.3.8': {}
 
-  '@zturnlibs/ztron-react@0.3.7(react@19.3.0)':
+  '@zturnlibs/ztron-react@0.3.8(react@19.3.0)':
     dependencies:
-      '@zturnlibs/ztron-api': 0.3.7
+      '@zturnlibs/ztron-api': 0.3.8
       react: 19.3.0
 
-  '@zturnlibs/ztron-runtime-ffi@0.3.7(patch_hash=7eizr3daavbib2vx7yw4qzna4a)':
+  '@zturnlibs/ztron-runtime-ffi@0.3.8(patch_hash=cgo4lpe2opg4uyjkv5plkerpm4)':
     dependencies:
-      '@zturnlibs/ztron-core': 0.3.7
+      '@zturnlibs/ztron-core': 0.3.8
 
   baseline-browser-mapping@2.11.27: {}
 

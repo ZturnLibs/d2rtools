@@ -7,11 +7,13 @@ export function ModCard(props: {
   record: InstallRecordView | undefined;
   suggestedArgs: string[];
   sizeHint?: string;
+  scriptsCount?: number;
   onInstall: () => void;
   onUninstall: () => void;
   onLaunch: (args: string[]) => void;
   onReadme: () => void;
   onOpenDir: () => void;
+  onScripts?: () => void;
 }) {
   const { mod, installed, record, suggestedArgs } = props;
   const title = mod.displayName ? `${mod.displayName}（${mod.name}）` : mod.name;
@@ -32,6 +34,7 @@ export function ModCard(props: {
                 已安装{record ? (record.mode === "hardlink" ? " · 硬链接" : " · 复制") : ""}
               </Chip>
             )}
+            {(props.scriptsCount ?? 0) > 0 && <Chip tone="cyan">作者脚本 ×{props.scriptsCount}</Chip>}
           </div>
         </div>
         {props.sizeHint && <span className="shrink-0 text-[11px] text-neutral-600">{props.sizeHint}</span>}
@@ -60,6 +63,7 @@ export function ModCard(props: {
           </Btn>
         )}
         {mod.readmePath && <Btn onClick={props.onReadme}>说明</Btn>}
+        {(props.scriptsCount ?? 0) > 0 && <Btn onClick={() => props.onScripts?.()}>脚本</Btn>}
         <Btn onClick={props.onOpenDir}>打开目录</Btn>
       </div>
     </div>

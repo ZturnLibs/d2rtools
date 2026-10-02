@@ -2,7 +2,12 @@
   "entry": "src/main.ts",
   "frontend": "frontend",
   "identifier": "com.zyj.d2rbox",
+  "appName": "D2RBox",
+  "productName": "D2R工具箱",
   "version": "0.1.0",
+  "bundle": {
+    "targets": ["nsis"]
+  },
   "windows": [
     {
       "label": "main",
