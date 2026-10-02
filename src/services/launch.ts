@@ -61,6 +61,41 @@ export async function pickFolder(title: string): Promise<string | null> {
   return parseOkMarker(res.stdout);
 }
 
+/** Native file picker via OpenFileDialog (same story as pickFolder — the
+ *  host's file dialog can't be aimed from the backend). Returns null when
+ *  the user cancels. */
+export async function pickFile(opts: {
+  title: string;
+  filterName: string; // e.g. "仓库文件"
+  pattern: string; // e.g. "*.d2i"
+}): Promise<string | null> {
+  const script = [
+    "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8",
+    "Add-Type -AssemblyName System.Windows.Forms | Out-Null",
+    "$dlg = New-Object System.Windows.Forms.OpenFileDialog",
+    "$dlg.Title = $env:D2R_PICK_TITLE",
+    "$dlg.Filter = $env:D2R_PICK_FILTER + ' (' + $env:D2R_PICK_PATTERN + ')|' + $env:D2R_PICK_PATTERN",
+    "$dlg.DereferenceLinks = $true",
+    "$owner = New-Object System.Windows.Forms.Form",
+    "$owner.TopMost = $true",
+    "if ($dlg.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output ('__D2R_OK__' + $dlg.FileName) }",
+    "$owner.Dispose()",
+  ].join("; ");
+  const res = await runPowerShell({
+    command: script,
+    env: {
+      D2R_PICK_TITLE: opts.title,
+      D2R_PICK_FILTER: opts.filterName,
+      D2R_PICK_PATTERN: opts.pattern,
+    },
+    timeoutMs: 120_000,
+  });
+  if (res.code !== 0 && res.stdout.trim() === "") {
+    throw new Error(`文件选择失败：${res.stderr.trim() || `exit ${res.code}`}`);
+  }
+  return parseOkMarker(res.stdout);
+}
+
 /**
  * Create a desktop .lnk via WScript.Shell. The generated .ps1 is written
  * UTF-8 **with BOM** (PS 5.1 assumes ANSI otherwise) and all values travel

@@ -11,10 +11,23 @@ import {
   type KnownMod,
   type LaunchProfile,
 } from "./services/config.js";
-import { validateGameDir, ensureModsDir } from "./services/paths.js";
+import {
+  validateGameDir,
+  ensureModsDir,
+  saveRoot,
+  modSaveDir,
+  pathExists,
+  isValidModName,
+} from "./services/paths.js";
 import { scanSource } from "./services/scan.js";
 import { findReadme } from "./services/modinfo.js";
-import { pickFolder, launchGame, exportShortcut, openInExplorer } from "./services/launch.js";
+import {
+  pickFolder,
+  pickFile,
+  launchGame,
+  exportShortcut,
+  openInExplorer,
+} from "./services/launch.js";
 import {
   installMod,
   uninstallPreflight,
@@ -22,6 +35,17 @@ import {
   installState,
   type InstallProgress,
 } from "./services/install.js";
+import {
+  scanSaveOverview,
+  listBackups,
+  createBackup,
+  restoreBackup,
+  deleteBackup as deleteBackupById,
+  setBackupNote as setBackupNoteById,
+  isGameRunning,
+  isSaveSlot,
+} from "./services/saves.js";
+import { stashPreflight, stashReplace, isStashSlot } from "./services/stash.js";
 
 // ---------------------------------------------------------------------------
 // DTO mapper (phantom types in defineCommand stay inline per codegen rules).
@@ -78,6 +102,8 @@ const getConfig = defineCommand("d2r:getConfig", {
       }[];
       profiles: { id: string; name: string; modName: string; extraArgs: string[]; note: string; createdAt: number }[];
       installed: Record<string, { mode: string; installedAt: number; sourcePath: string }>;
+      autoBackup: boolean;
+      backupKeep: number;
     };
     validation: { exists: boolean; hasD2R: boolean; hasModsDir: boolean } | null;
   },
@@ -91,6 +117,8 @@ const getConfig = defineCommand("d2r:getConfig", {
         knownMods: config.knownMods.map(toModDto),
         profiles: config.profiles,
         installed: config.installed,
+        autoBackup: config.autoBackup,
+        backupKeep: config.backupKeep,
       },
       validation: config.gameDir ? await validateGameDir(config.gameDir) : null,
     };
@@ -369,6 +397,32 @@ const launch = defineCommand("d2r:launch", {
     }
     const extra = Array.isArray(args.extraArgs) ? args.extraArgs.filter((a) => a.length > 0) : [];
     const launchArgs = ["-mod", modName, ...extra];
+
+    // Silent pre-launch snapshot (never blocks playing): root saves always,
+    // plus the mod's own save dir when it already exists on disk.
+    if (config.autoBackup) {
+      try {
+        const saveDir = await saveRoot();
+        const mod = config.knownMods.find((m) => m.name === modName);
+        const slots = ["root"];
+        if (mod && mod.savepath.trim() !== "../") {
+          if (await pathExists(await modSaveDir(mod.savepath))) {
+            slots.push(`mods/${modName}`);
+          }
+        }
+        const backup = await createBackup({
+          saveDir,
+          slots,
+          note: `启动 ${modName} 前自动备份`,
+          trigger: "auto-launch",
+          backupKeep: config.backupKeep,
+        });
+        console.log(`[d2rbox] auto backup ${backup.id} (${backup.files} files) before launch`);
+      } catch (err) {
+        console.warn("[d2rbox] auto backup failed (launch continues):", err);
+      }
+    }
+
     const { pid } = await launchGame(config.gameDir, launchArgs);
     console.log(`[d2rbox] launched D2R.exe pid=${pid} args=${JSON.stringify(launchArgs)}`);
     return { pid, args: launchArgs };
@@ -404,6 +458,191 @@ const openDir = defineCommand("d2r:openDir", {
   },
 });
 
+// ---------------------------------------------------------------------------
+// 存档管家 (M2) — overview / snapshot backup / restore
+// ---------------------------------------------------------------------------
+
+const saveOverview = defineCommand("d2r:saveOverview", {
+  args: {} as Record<string, never>,
+  result: {} as {
+    root: {
+      name: string;
+      slot: string;
+      path: string;
+      exists: boolean;
+      files: { name: string; size: number; mtime: number }[];
+      dirs: { name: string; files: number; bytes: number }[];
+      totalBytes: number;
+    };
+    mods: {
+      name: string;
+      slot: string;
+      path: string;
+      exists: boolean;
+      files: { name: string; size: number; mtime: number }[];
+      dirs: { name: string; files: number; bytes: number }[];
+      totalBytes: number;
+    }[];
+  },
+  handler: async () => {
+    const config = await loadConfig();
+    const saveDir = await saveRoot();
+    const independent = config.knownMods
+      .filter((m) => m.savepath.trim() !== "../" && isValidModName(m.name))
+      .map((m) => m.name);
+    return scanSaveOverview(saveDir, independent);
+  },
+});
+
+const listBackupsCmd = defineCommand("d2r:listBackups", {
+  args: {} as Record<string, never>,
+  result: {} as {
+    dir: string;
+    backups: {
+      id: string;
+      createdAt: number;
+      note: string;
+      trigger: string;
+      scopes: { slot: string; sourcePath: string }[];
+      files: number;
+      bytes: number;
+      signature: string;
+    }[];
+  },
+  handler: async () => listBackups(),
+});
+
+const backupNow = defineCommand("d2r:backupNow", {
+  args: {} as { slots: string[]; note?: string },
+  result: {} as {
+    backup: {
+      id: string;
+      createdAt: number;
+      note: string;
+      trigger: string;
+      scopes: { slot: string; sourcePath: string }[];
+      files: number;
+      bytes: number;
+      signature: string;
+    };
+  },
+  handler: async (args) => {
+    const slots = Array.isArray(args.slots) ? args.slots : [];
+    for (const s of slots) {
+      if (!isSaveSlot(s)) throw new Error(`非法存档范围：${s}`);
+    }
+    const config = await loadConfig();
+    const backup = await createBackup({
+      saveDir: await saveRoot(),
+      slots,
+      note: args.note,
+      trigger: "manual",
+      backupKeep: config.backupKeep,
+    });
+    return { backup };
+  },
+});
+
+const restoreBackupCmd = defineCommand("d2r:restoreBackup", {
+  args: {} as { id: string },
+  result: {} as { ok: boolean; preRestoreId: string | null },
+  handler: async (args) => {
+    const config = await loadConfig();
+    return restoreBackup({ id: args.id, saveDir: await saveRoot(), backupKeep: config.backupKeep });
+  },
+});
+
+const deleteBackup = defineCommand("d2r:deleteBackup", {
+  args: {} as { id: string },
+  result: {} as { ok: boolean },
+  handler: async (args) => {
+    await deleteBackupById(args.id);
+    return { ok: true };
+  },
+});
+
+const setBackupNote = defineCommand("d2r:setBackupNote", {
+  args: {} as { id: string; note: string },
+  result: {} as { ok: boolean },
+  handler: async (args) => {
+    await setBackupNoteById(args.id, args.note ?? "");
+    return { ok: true };
+  },
+});
+
+const setSavePrefs = defineCommand("d2r:setSavePrefs", {
+  args: {} as { autoBackup?: boolean; backupKeep?: number },
+  result: {} as { ok: boolean; autoBackup: boolean; backupKeep: number },
+  handler: async (args) => {
+    if (args.autoBackup !== undefined && typeof args.autoBackup !== "boolean") {
+      throw new Error("autoBackup 必须是布尔值");
+    }
+    if (args.backupKeep !== undefined) {
+      if (!Number.isInteger(args.backupKeep) || args.backupKeep < 1 || args.backupKeep > 100) {
+        throw new Error("保留份数需为 1-100 的整数");
+      }
+    }
+    const cfg = await updateConfig((c) => ({
+      ...c,
+      autoBackup: args.autoBackup ?? c.autoBackup,
+      backupKeep: args.backupKeep ?? c.backupKeep,
+    }));
+    return { ok: true, autoBackup: cfg.autoBackup, backupKeep: cfg.backupKeep };
+  },
+});
+
+const checkGameRunning = defineCommand("d2r:checkGameRunning", {
+  args: {} as Record<string, never>,
+  result: {} as { running: boolean },
+  handler: async () => ({ running: await isGameRunning() }),
+});
+
+const stashPickFile = defineCommand("d2r:stashPickFile", {
+  args: {} as { title?: string },
+  result: {} as { path: string | null },
+  handler: async (args) => {
+    const path = await pickFile({
+      title: args.title?.trim() || "选择 .d2i 共享仓库文件",
+      filterName: "仓库文件",
+      pattern: "*.d2i",
+    });
+    return { path };
+  },
+});
+
+const stashPreflightCmd = defineCommand("d2r:stashPreflight", {
+  args: {} as { slot: string },
+  result: {} as {
+    slot: string;
+    fileName: string;
+    path: string;
+    exists: boolean;
+    size: number;
+    mtime: number;
+    gameRunning: boolean;
+  },
+  handler: async (args) => {
+    if (!isStashSlot(args.slot)) throw new Error(`非法仓库槽位：${args.slot}`);
+    return stashPreflight(await saveRoot(), args.slot);
+  },
+});
+
+const stashReplaceCmd = defineCommand("d2r:stashReplace", {
+  args: {} as { slot: string; sourcePath: string; note?: string },
+  result: {} as { ok: boolean; backupId: string | null; replaced: boolean },
+  handler: async (args) => {
+    if (!isStashSlot(args.slot)) throw new Error(`非法仓库槽位：${args.slot}`);
+    const config = await loadConfig();
+    return stashReplace({
+      saveDir: await saveRoot(),
+      slot: args.slot,
+      sourcePath: args.sourcePath,
+      note: args.note,
+      backupKeep: config.backupKeep,
+    });
+  },
+});
+
 /** All command defs, individually typed — register each via app.commandDef
  *  (a heterogeneous array would collapse the phantom types to a union). */
 export const commandDefs = {
@@ -422,4 +661,15 @@ export const commandDefs = {
   launch,
   exportShortcut: exportShortcutCmd,
   openDir,
+  saveOverview,
+  listBackups: listBackupsCmd,
+  backupNow,
+  restoreBackup: restoreBackupCmd,
+  deleteBackup,
+  setBackupNote,
+  setSavePrefs,
+  checkGameRunning,
+  stashPickFile,
+  stashPreflight: stashPreflightCmd,
+  stashReplace: stashReplaceCmd,
 };

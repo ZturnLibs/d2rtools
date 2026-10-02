@@ -55,6 +55,10 @@ export interface AppConfig {
   knownMods: KnownMod[];
   profiles: LaunchProfile[];
   installed: Record<string, InstallRecord>;
+  /** Snapshot the save dir(s) before every tool-launched game start. */
+  autoBackup: boolean;
+  /** Snapshots kept per scope signature (root / mods\<name> combos). */
+  backupKeep: number;
 }
 
 export function defaultConfig(): AppConfig {
@@ -65,6 +69,8 @@ export function defaultConfig(): AppConfig {
     knownMods: [],
     profiles: [],
     installed: {},
+    autoBackup: true,
+    backupKeep: 10,
   };
 }
 

@@ -1,7 +1,7 @@
 /**
  * Toolbox shell: fixed left nav switching between tools (M1: Mod 管理 +
- * 设置 live; 存档管家/仓库向导 are M2 placeholders). Config is loaded once
- * here and passed down with a refresh handle.
+ * 设置; M2: 存档管家 + 仓库向导). Config is loaded once here and passed
+ * down with a refresh handle.
  */
 import { useState } from "react";
 import { useCommand } from "./lib/ipc";
@@ -15,8 +15,8 @@ type TabId = "mods" | "saves" | "vault" | "settings";
 
 const TABS: { id: TabId; label: string; hint: string }[] = [
   { id: "mods", label: "Mod 管理", hint: "整合包扫描 / 安装 / 启动" },
-  { id: "saves", label: "存档管家", hint: "M2 敬请期待" },
-  { id: "vault", label: "仓库向导", hint: "M2 敬请期待" },
+  { id: "saves", label: "存档管家", hint: "快照备份 / 一键还原" },
+  { id: "vault", label: "仓库向导", hint: "共享仓库 .d2i 替换" },
   { id: "settings", label: "设置", hint: "游戏目录 / 来源" },
 ];
 
@@ -46,7 +46,7 @@ export default function App() {
       <aside className="flex w-52 shrink-0 flex-col border-r border-neutral-800/80 bg-[#0d1017]">
         <div className="px-5 py-5">
           <h1 className="text-base font-bold tracking-wide">D2R 工具箱</h1>
-          <p className="mt-0.5 text-[11px] text-neutral-500">Horadric Kit · M1</p>
+          <p className="mt-0.5 text-[11px] text-neutral-500">Horadric Kit · M2</p>
         </div>
         <nav className="flex-1 space-y-1 px-3">
           {TABS.map((t) => (
@@ -100,8 +100,8 @@ export default function App() {
               goToSettings={() => setTab("settings")}
             />
           )}
-          {tab === "saves" && <SavesPage />}
-          {tab === "vault" && <VaultPage />}
+          {tab === "saves" && <SavesPage config={cfg} refreshConfig={config.refresh} />}
+          {tab === "vault" && <VaultPage goToSaves={() => setTab("saves")} />}
           {tab === "settings" && (
             <SettingsPage
               config={cfg}
