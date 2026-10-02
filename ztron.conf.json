@@ -7,7 +7,7 @@
   "version": "0.1.0",
   "bundle": {
     "targets": ["nsis"],
-    "icon": ["icon/app-icon.png"]
+    "icon": ["icon/app-icon.png", "icon/app.ico"]
   },
   "windows": [
     {
