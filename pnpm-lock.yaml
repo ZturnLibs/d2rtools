@@ -13,6 +13,9 @@ importers:
 
   .:
     dependencies:
+      '@dschu012/d2s':
+        specifier: ^2.0.36
+        version: 2.0.36
       '@zturnlibs/ztron-api':
         specifier: 0.3.8
         version: 0.3.8
@@ -153,6 +156,9 @@ packages:
   '@babel/types@7.29.8':
     resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
+
+  '@dschu012/d2s@2.0.36':
+    resolution: {integrity: sha512-k/WSnYBZ1+QPzFluSGFsxbcc55wgkVPCuZV0Fnudnn9JV4kSdWGjmv1eLBIU0eZoq/nzFM2MmAZky2lZwOlMCQ==}
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -1141,6 +1147,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
+
+  '@dschu012/d2s@2.0.36': {}
 
   '@esbuild/aix-ppc64@0.25.12':
     optional: true

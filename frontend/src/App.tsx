@@ -11,13 +11,16 @@ import { SettingsPage } from "./tools/SettingsPage";
 import { SavesPage } from "./tools/SavesPage";
 import { VaultPage } from "./tools/VaultPage";
 import { FilterPage } from "./tools/FilterPage/FilterPage";
+import { ItemPage } from "./tools/ItemPage";
+import { ExitGuardWatcher } from "./components/ExitGuardWatcher";
 
-type TabId = "mods" | "saves" | "vault" | "filter" | "settings";
+type TabId = "mods" | "saves" | "vault" | "items" | "filter" | "settings";
 
 const TABS: { id: TabId; label: string; hint: string }[] = [
   { id: "mods", label: "Mod 管理", hint: "整合包扫描 / 安装 / 启动" },
   { id: "saves", label: "存档管家", hint: "快照备份 / 一键还原" },
   { id: "vault", label: "仓库向导", hint: "共享仓库 .d2i 替换" },
+  { id: "items", label: "物品清单", hint: "仓库/角色浏览与搜索" },
   { id: "filter", label: "过滤管理", hint: "掉落过滤预设" },
   { id: "settings", label: "设置", hint: "游戏目录 / 来源" },
 ];
@@ -48,7 +51,7 @@ export default function App() {
       <aside className="flex w-52 shrink-0 flex-col border-r border-neutral-800/80 bg-[#0d1017]">
         <div className="px-5 py-5">
           <h1 className="text-base font-bold tracking-wide">D2R 工具箱</h1>
-          <p className="mt-0.5 text-[11px] text-neutral-500">Horadric Kit · M6</p>
+          <p className="mt-0.5 text-[11px] text-neutral-500">Horadric Kit · M7</p>
         </div>
         <nav className="flex-1 space-y-1 px-3">
           {TABS.map((t) => (
@@ -104,6 +107,7 @@ export default function App() {
           )}
           {tab === "saves" && <SavesPage config={cfg} refreshConfig={config.refresh} />}
           {tab === "vault" && <VaultPage goToSaves={() => setTab("saves")} />}
+          {tab === "items" && <ItemPage />}
           {tab === "filter" && <FilterPage config={cfg} goToSettings={() => setTab("settings")} />}
           {tab === "settings" && (
             <SettingsPage
@@ -114,6 +118,9 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {/* 全局：游戏退出后的存档守护提醒（丢失 → 模态窗一键还原；变化 → 轻提示） */}
+      <ExitGuardWatcher />
     </div>
   );
 }

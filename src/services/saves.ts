@@ -215,7 +215,14 @@ export async function scanSaveOverview(
 // Backup store: %APPDATA%\com.zyj.d2rbox\backups\<id>\{meta.json, slots\}
 // ---------------------------------------------------------------------------
 
-export type BackupTrigger = "manual" | "auto-launch" | "pre-restore" | "stash" | "transfer";
+export type BackupTrigger =
+  | "manual"
+  | "auto-launch"
+  | "pre-restore"
+  | "stash"
+  | "transfer"
+  | "pre-install"
+  | "auto-exit";
 
 export interface BackupMeta {
   id: string;

@@ -49,6 +49,17 @@ import {
 } from "./services/saves.js";
 import { stashPreflight, stashReplace, isStashSlot } from "./services/stash.js";
 import {
+  listItemSources,
+  parseItemFile,
+  type ItemDto,
+  type WhereKey,
+} from "./services/itemview.js";
+import {
+  armLaunchWatch,
+  captureFingerprint,
+  postExitCheck,
+} from "./services/exitguard.js";
+import {
   listPresets,
   readPreset,
   summarizeRule,
@@ -101,6 +112,35 @@ function toModDto(m: KnownMod): {
 // ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
+
+/** M7 存档保护默认动作化：安装/卸载 mod 前对受影响存档组拍快照
+ *  （best-effort：失败只告警不阻断，与 launch 的自动备份同语义）。 */
+async function preInstallSnapshot(
+  config: Awaited<ReturnType<typeof loadConfig>>,
+  modName: string,
+  note: string,
+): Promise<void> {
+  if (!config.autoBackup) return;
+  try {
+    const saveDir = await saveRoot();
+    const slots: string[] = ["root"];
+    const mod = config.knownMods.find((m) => m.name === modName);
+    if (mod && mod.savepath.trim() !== "../") {
+      if (await pathExists(await modSaveDir(mod.savepath))) slots.push(`mods/${modName}`);
+    }
+    const backup = await createBackup({
+      saveDir,
+      slots,
+      note,
+      trigger: "pre-install",
+      backupKeep: config.backupKeep,
+      zip: config.backupZip,
+    });
+    console.log(`[d2rbox] pre-install backup ${backup.id} (${backup.files} files)`);
+  } catch (err) {
+    console.warn("[d2rbox] pre-install backup failed (continuing):", err);
+  }
+}
 
 const getConfig = defineCommand("d2r:getConfig", {
   args: {} as Record<string, never>,
@@ -296,6 +336,7 @@ const installModCmd = defineCommand("d2r:installMod", {
     const mod = config.knownMods.find((m) => m.key === args.key);
     if (!mod) throw new Error("MOD 不存在，请重新扫描");
     const mode = args.mode === "hardlink" ? "hardlink" : "copy";
+    await preInstallSnapshot(config, mod.name, `安装 ${mod.name} 前自动备份`);
 
     try {
       const outcome = await installMod({
@@ -343,6 +384,7 @@ const uninstallModCmd = defineCommand("d2r:uninstallMod", {
   handler: async (args) => {
     const config = await loadConfig();
     if (!config.gameDir) throw new Error("请先在设置中配置游戏目录");
+    await preInstallSnapshot(config, args.name, `卸载 ${args.name} 前自动备份`);
     await uninstallModDir(config.gameDir, args.name);
     await updateConfig((cfg) => {
       const installed = { ...cfg.installed };
@@ -422,25 +464,29 @@ const launch = defineCommand("d2r:launch", {
     const launchArgs = ["-mod", modName, ...extra];
 
     // Silent pre-launch snapshot (never blocks playing): root saves always,
-    // plus the mod's own save dir when it already exists on disk.
+    // plus the mod's own save dir when it already exists on disk. The
+    // snapshot id doubles as the exit-guard rollback anchor (M7).
+    let launchSlots: string[] = [];
+    let launchBackupId: string | null = null;
     if (config.autoBackup) {
       try {
         const saveDir = await saveRoot();
         const mod = config.knownMods.find((m) => m.name === modName);
-        const slots = ["root"];
+        launchSlots = ["root"];
         if (mod && mod.savepath.trim() !== "../") {
           if (await pathExists(await modSaveDir(mod.savepath))) {
-            slots.push(`mods/${modName}`);
+            launchSlots.push(`mods/${modName}`);
           }
         }
         const backup = await createBackup({
           saveDir,
-          slots,
+          slots: launchSlots,
           note: `启动 ${modName} 前自动备份`,
           trigger: "auto-launch",
           backupKeep: config.backupKeep,
           zip: config.backupZip,
         });
+        launchBackupId = backup.id;
         console.log(`[d2rbox] auto backup ${backup.id} (${backup.files} files) before launch`);
       } catch (err) {
         console.warn("[d2rbox] auto backup failed (launch continues):", err);
@@ -449,6 +495,24 @@ const launch = defineCommand("d2r:launch", {
 
     const { pid } = await launchGame(config.gameDir, launchArgs);
     console.log(`[d2rbox] launched D2R.exe pid=${pid} args=${JSON.stringify(launchArgs)}`);
+
+    // 退出守护 (M7)：记下启动时的存档指纹与快照锚点；游戏退出后前端调
+    // d2r:postExitCheck 收尾（增量备份 / 丢档告警）。备份失败时不布防
+    // （没有可回滚的锚点，监视失去意义）。
+    if (launchBackupId !== null) {
+      try {
+        const fingerprint = await captureFingerprint(await saveRoot(), launchSlots);
+        await armLaunchWatch({
+          startedAt: Date.now(),
+          pid,
+          slots: launchSlots,
+          fingerprint,
+          backupId: launchBackupId,
+        });
+      } catch (err) {
+        console.warn("[d2rbox] launch watch arm failed (exit guard off):", err);
+      }
+    }
     return { pid, args: launchArgs };
   },
 });
@@ -880,6 +944,123 @@ const filterDelete = defineCommand("d2r:filterDelete", {
   handler: async (args) => deletePreset(args.file),
 });
 
+// ---------------------------------------------------------------------------
+// 物品清单 (M7) — .d2i/.d2s 只读解析（明细见 services/itemview.ts）
+// ---------------------------------------------------------------------------
+
+const itemSources = defineCommand("d2r:itemSources", {
+  args: {} as Record<string, never>,
+  result: {} as {
+    groups: {
+      name: string;
+      slot: string;
+      path: string;
+      exists: boolean;
+      stashes: { name: string; path: string; size: number; mtime: number; kind: string }[];
+      characters: { name: string; path: string; size: number; mtime: number }[];
+    }[];
+  },
+  handler: async () => listItemSources(await saveRoot()),
+});
+
+const itemView = defineCommand("d2r:itemView", {
+  args: {} as { path: string },
+  result: {} as
+    | {
+        kind: "stash";
+        version: string;
+        hardcore: boolean;
+        sharedGold: number;
+        pageCount: number;
+        pages: {
+          index: number;
+          name: string;
+          items: {
+            type: string;
+            name: string;
+            quality: string;
+            category: string;
+            where: string;
+            page: number;
+            x: number;
+            y: number;
+            qty: number | null;
+            level: number | null;
+            ethereal: boolean;
+            socketed: boolean;
+            sockets: number | null;
+            identified: boolean;
+          }[];
+        }[];
+      }
+    | {
+        kind: "character";
+        name: string;
+        className: string | null;
+        level: number | null;
+        hardcore: boolean;
+        expansion: boolean;
+        groups: {
+          where: string;
+          items: {
+            type: string;
+            name: string;
+            quality: string;
+            category: string;
+            where: string;
+            page: number;
+            x: number;
+            y: number;
+            qty: number | null;
+            level: number | null;
+            ethereal: boolean;
+            socketed: boolean;
+            sockets: number | null;
+            identified: boolean;
+          }[];
+        }[];
+      }
+    | { kind: "error"; message: string },
+  handler: async (args) => {
+    // 只放行存档目录内的 .d2i/.d2s — 既是安全边界，也防把任意文件喂给解析器
+    const root = await saveRoot();
+    const p = args.path;
+    const lowerRoot = root.toLowerCase();
+    if (!p.toLowerCase().startsWith(`${lowerRoot}\\`)) {
+      throw new Error("路径不在存档目录内");
+    }
+    const lower = p.toLowerCase();
+    if (!lower.endsWith(".d2i") && !lower.endsWith(".d2s")) {
+      throw new Error("仅支持 .d2i 仓库与 .d2s 角色文件");
+    }
+    return parseItemFile(p);
+  },
+});
+
+// ---------------------------------------------------------------------------
+// 退出守护 (M7) — 游戏退出后的增量备份与丢档告警
+// ---------------------------------------------------------------------------
+
+const postExitCheckCmd = defineCommand("d2r:postExitCheck", {
+  args: {} as Record<string, never>,
+  result: {} as {
+    running: boolean;
+    watched: boolean;
+    changed: boolean;
+    lost: string[];
+    backupId: string | null;
+    preLaunchBackupId: string | null;
+  },
+  handler: async () => {
+    const config = await loadConfig();
+    return postExitCheck({
+      saveDir: await saveRoot(),
+      backupKeep: config.backupKeep,
+      zip: config.backupZip,
+    });
+  },
+});
+
 /** All command defs, individually typed — register each via app.commandDef
  *  (a heterogeneous array would collapse the phantom types to a union). */
 export const commandDefs = {
@@ -924,4 +1105,7 @@ export const commandDefs = {
   filterDuplicate,
   filterRename,
   filterDelete,
+  itemSources,
+  itemView,
+  postExitCheck: postExitCheckCmd,
 };

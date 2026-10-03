@@ -32,3 +32,15 @@ export type FilterPresetView = FilterListResult["presets"][number];
 export type FilterReadResult = KnownCommands["d2r:filterRead"]["result"];
 export type FilterRuleView = FilterReadResult["rules"][number];
 export type FilterBackupView = KnownCommands["d2r:filterBackups"]["result"]["backups"][number];
+
+// — M7 物品清单 / 退出守护 —
+export type ItemSourcesResult = KnownCommands["d2r:itemSources"]["result"];
+export type ItemSourceGroupView = ItemSourcesResult["groups"][number];
+export type StashFileInfoView = ItemSourceGroupView["stashes"][number];
+export type CharacterFileInfoView = ItemSourceGroupView["characters"][number];
+export type ItemViewResult = KnownCommands["d2r:itemView"]["result"];
+export type ItemDtoView = Extract<
+  ItemViewResult,
+  { kind: "stash" }
+>["pages"][number]["items"][number];
+export type PostExitCheckResult = KnownCommands["d2r:postExitCheck"]["result"];

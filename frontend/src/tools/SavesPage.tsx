@@ -30,6 +30,8 @@ const TRIGGER_LABEL: Record<Trigger, string> = {
   "pre-restore": "还原前",
   stash: "仓库替换",
   transfer: "存档转移",
+  "pre-install": "装 Mod 前",
+  "auto-exit": "退出游戏后",
 };
 
 const TRIGGER_CLASS: Record<Trigger, string> = {
@@ -38,6 +40,8 @@ const TRIGGER_CLASS: Record<Trigger, string> = {
   "pre-restore": "bg-amber-500/15 text-amber-300",
   stash: "bg-emerald-500/15 text-emerald-300",
   transfer: "bg-rose-500/15 text-rose-300",
+  "pre-install": "bg-teal-500/15 text-teal-300",
+  "auto-exit": "bg-fuchsia-500/15 text-fuchsia-300",
 };
 
 function slotLabel(slot: string): string {
@@ -67,6 +71,18 @@ const CLASS_LABEL: Record<ReturnType<typeof classify>, string> = {
 export function SavesPage(props: { config: AppConfigView; refreshConfig: () => void }) {
   const overview = useCommand("d2r:saveOverview", {});
   const backups = useCommand("d2r:listBackups", {});
+
+  // 退出守护产生 auto-exit 备份 / 存档守护还原后，同步刷新本页
+  useEffect(() => {
+    const onChanged = () => {
+      overview.refresh();
+      backups.refresh();
+    };
+    window.addEventListener("d2rbox:backups-changed", onChanged);
+    return () => window.removeEventListener("d2rbox:backups-changed", onChanged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

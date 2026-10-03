@@ -48,6 +48,19 @@ export interface InstallRecord {
   sourcePath: string;
 }
 
+/** M7 退出守护：一次工具启动游戏时的存档指纹 + pre-launch 快照锚点。 */
+export interface LaunchWatch {
+  startedAt: number;
+  pid: number;
+  slots: string[];
+  fingerprint: {
+    slot: string;
+    files: { name: string; size: number; mtime: number }[];
+  }[];
+  /** pre-launch 快照 id — 存档异常时前端一键还原的目标 */
+  backupId: string | null;
+}
+
 export interface AppConfig {
   version: 1;
   gameDir: string | null;
@@ -61,6 +74,8 @@ export interface AppConfig {
   backupKeep: number;
   /** Store new snapshots as slots\<seg>.zip instead of folders (M6). */
   backupZip: boolean;
+  /** Non-null while a tool-launched game session is being watched (M7). */
+  launchWatch: LaunchWatch | null;
 }
 
 export function defaultConfig(): AppConfig {
@@ -74,6 +89,7 @@ export function defaultConfig(): AppConfig {
     autoBackup: true,
     backupKeep: 10,
     backupZip: true,
+    launchWatch: null,
   };
 }
 

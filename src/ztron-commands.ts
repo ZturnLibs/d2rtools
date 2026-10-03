@@ -47,6 +47,9 @@ export type KnownCommands = {
     "d2r:filterDuplicate": { args: { file: string; newName: string }; result: { file: string } }
     "d2r:filterRename": { args: { file: string; newName: string }; result: { file: string } }
     "d2r:filterDelete": { args: { file: string }; result: { ok: boolean; backedUp: string | null } }
+    "d2r:itemSources": { args: Record<string, never>; result: { groups: { name: string; slot: string; path: string; exists: boolean; stashes: { name: string; path: string; size: number; mtime: number; kind: string }[]; characters: { name: string; path: string; size: number; mtime: number }[]; }[]; } }
+    "d2r:itemView": { args: { path: string }; result: | { kind: "stash"; version: string; hardcore: boolean; sharedGold: number; pageCount: number; pages: { index: number; name: string; items: { type: string; name: string; quality: string; category: string; where: string; page: number; x: number; y: number; qty: number | null; level: number | null; ethereal: boolean; socketed: boolean; sockets: number | null; identified: boolean; }[]; }[]; } | { kind: "character"; name: string; className: string | null; level: number | null; hardcore: boolean; expansion: boolean; groups: { where: string; items: { type: string; name: string; quality: string; category: string; where: string; page: number; x: number; y: number; qty: number | null; level: number | null; ethereal: boolean; socketed: boolean; sockets: number | null; identified: boolean; }[]; }[]; } | { kind: "error"; message: string } }
+    "d2r:postExitCheck": { args: Record<string, never>; result: { running: boolean; watched: boolean; changed: boolean; lost: string[]; backupId: string | null; preLaunchBackupId: string | null; } }
 };
 
 /** Type-safe invoke: cmd must be a known command, args/result inferred from its declaration. */
@@ -102,6 +105,9 @@ export async function invoke(
   if (cmd === "d2r:filterDuplicate") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:filterRename") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:filterDelete") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:itemSources") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:itemView") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:postExitCheck") return rawInvoke(cmd, args as never, options);
   return rawInvoke(cmd, (args ?? {}) as never, options);
 }
 export default invoke;
