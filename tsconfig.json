@@ -24,6 +24,8 @@
   },
   "include": [
     "src",
-    "frontend/src"
+    "frontend/src",
+    "tests",
+    "vitest.config.ts"
   ]
 }
