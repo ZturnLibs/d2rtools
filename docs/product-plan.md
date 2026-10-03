@@ -1,6 +1,6 @@
 # D2R 工具箱 · 产品方案（第一期）
 
-> 状态：讨论稿 v1 · 2026-10
+> 状态：讨论稿 v2 · 2026-10（v2：并入社区调研路线规划，M7–M11 排期）
 > 背景：解决"每次手动配置/修改参数才能用 mod"的痛点；工具定位不限于 mod 管理，后续是一类工具集合。
 > 产品方向参考：`docs/community-research.md`（社区需求调研）、`docs/stash-manager-feasibility.md`（大箱子管理可行性）、`docs/mod-update-download-feasibility.md`（mod 更新/下载可行性）
 
@@ -56,7 +56,7 @@
 - 前端按"工具"组织：左侧工具导航（Mod 管理 / 存档管家 / 仓库向导 / 设置），每个工具是独立路由模块
 - 后端按"能力"组织：`services/` 下每个领域一个服务（modLibrary、saveManager、stashWizard、scriptRunner），通过 ztron commands 暴露给前端，`ztron codegen` 生成类型绑定
 - 配置持久化：ztron store 插件（游戏路径、仓库目录列表、备份保留策略、各工具设置）
-- 后续候选工具：~~lootfilter/.fltr 管理~~（已落地 M5）、~~Settings.json 备份~~与 zip 压缩备份（已落地 M6）、~~存档转移~~（已落地 M3）、物品清单/大箱子管理（M7 起，可行性见 `docs/stash-manager-feasibility.md`）、mod 更新检测与在线 mod 库（可行性见 `docs/mod-update-download-feasibility.md`，原"留待社群渠道决策"已有结论：作者直链模式可行）
+- 后续候选工具：~~lootfilter/.fltr 管理~~（已落地 M5）、~~Settings.json 备份~~与 zip 压缩备份（已落地 M6）、~~存档转移~~（已落地 M3）、物品清单/大箱子管理（M7/M10/M11，可行性见 `docs/stash-manager-feasibility.md`）、mod 更新检测与在线 mod 库（M9，可行性见 `docs/mod-update-download-feasibility.md`，原"留待社群渠道决策"已有结论：作者直链模式可行）、环境健康检查工具页（M8，调研 P3 引流型功能：路径/编码/杀毒误报/语言/版本适配一键体检）
 
 ## 5. 技术架构
 
@@ -99,7 +99,13 @@
 | M3 | bat 开关集成 + 打磨 + NSIS 打包（W6/W7） | 群友可装 exe 即用 |
 | M5 | 掉落过滤管理（.fltr 预设原生管理 + 11 条命令 + 工具页 + 27 例测试） | 已落地 |
 | M6 | 存档管家扩容（zip 压缩备份 + config 配置快照槽 + 备份占用显示） | 已落地 |
-| M7 | 物品清单只读页（解析 .d2i/.d2s，按分类/页展示 + 搜索；为大仓库向导"替换前搬家提示"和后续大箱子写入管线铺路） | 各 savepath 的共享仓库与角色物品可浏览可搜索；npm 包 `d2s` 接入并 pnpm patch 修 extendedStash（详见 `docs/stash-manager-feasibility.md` §5-B1） |
+| M7 | 物品清单只读页 + 存档保护默认动作化（解析 .d2i/.d2s 按分类/页展示 + 搜索；npm 包 `d2s` 接入并 pnpm patch 修 extendedStash，详见 `docs/stash-manager-feasibility.md` §5-B1；装 mod/换仓库/更新前强制快照钩子 + 退出游戏后增量备份 + 崩溃后提醒恢复——调研第一卖点"存档安全"的默认动作化落地；为大仓库向导"替换前搬家提示"） | 各 savepath 的共享仓库与角色物品可浏览可搜索；安装/替换/更新动作前自动产生快照、可一键回滚 |
+| M8 | 环境健康检查工具页（调研 P3 引流：中文路径/en-dash/超长路径/Game Pass 路径探测、杀毒误报提示、游戏语言与版本适配一键体检 + 修复指引） | 体检项可一键检测并给出修复指引；发群友实测收集反馈 |
+| M9 | mod 更新三件套（modinfo 注释段约定解析 + 更新检测（lastChecked 节流）+ mod-index.json 在线清单页 + 作者直链下载安装；zip 安全校验（临时目录扫描、拒绝可执行文件）后复用现有安装管线，详见 `docs/mod-update-download-feasibility.md`） | 已装 mod 可检测更新并安全升级；下载源失效时降级为跳转手动下载 |
+| M10 | 大仓库向导增强（替换前物品搬家提示——依赖 M7 解析；HC/SC 页数一致性检测） | 替换 stash 前可见将被清空的物品清单与搬家建议 |
+| M11 | 大箱子合并/拆分写入（布局引擎：分类规则 + 坐标合法化（x/y 4bit、页索引 3bit ≤8 页约束）；向导预览 + 写管线护栏：D2R 进程检测→强制快照→写入→checksum 回读→数量守恒校验；修 d2s 包 B2/B3） | 多源 d2i/角色物品可安全合并拆分，写坏可一键回滚 |
+
+> 远期 backlog（痒点，视资源排期）：.fltr 中文预设订阅分发（I1）、整合包配方导出/导入（I5）、符文之语速查（I4）、Grail 追踪、旧 d2i 物品注入新大箱子（I3）、Nexus key 查询集成（用户自带 key）、补丁后 mod 兼容矩阵提醒。
 
 ## 8. 风险与开放问题
 
@@ -107,4 +113,4 @@
 2. **生产模式资源加载**：dev 走 Vite http 无问题；打包后 ztron:// 需 WebView2 scheme handler（W2 的完整版），否则 build 产物白屏
 3. **savepath="../" 语义**：VIPer 共用主存档，工具在"存档总览"里要正确归组，避免误导用户以为有独立存档
 4. **bat 副作用**：作者脚本会 `taskkill /f /im D2R.exe`，集成时必须显式提示
-5. 开放问题：产品名待定；mod 更新检测/分发是否做（涉及社群发布渠道）留待第一期后讨论
+5. 开放问题：产品名待定；mod 更新检测/分发已有结论（作者直链模式，见 `docs/mod-update-download-feasibility.md`，排期 M9）；Nexus 下载集成（用户自带 key）与补丁后兼容矩阵列入二期可选
