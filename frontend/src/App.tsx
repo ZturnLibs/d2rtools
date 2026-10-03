@@ -48,7 +48,7 @@ export default function App() {
       <aside className="flex w-52 shrink-0 flex-col border-r border-neutral-800/80 bg-[#0d1017]">
         <div className="px-5 py-5">
           <h1 className="text-base font-bold tracking-wide">D2R 工具箱</h1>
-          <p className="mt-0.5 text-[11px] text-neutral-500">Horadric Kit · M5</p>
+          <p className="mt-0.5 text-[11px] text-neutral-500">Horadric Kit · M6</p>
         </div>
         <nav className="flex-1 space-y-1 px-3">
           {TABS.map((t) => (

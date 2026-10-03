@@ -4,11 +4,19 @@
  * Slot model — a snapshot covers one or more "slots":
  *   "root"        the whole save root dir (recursive), EXCLUDING mods\
  *   "mods/<name>" one per-mod save dir under saveRoot\mods\ (recursive)
+ *   "config"      a manifest pseudo-slot: only Settings.json,
+ *                 lootfilter.json and top-level *.fltr — never characters
  * The whole-dir copy is deliberate: the save tree is tiny (<2MB observed),
  * and copying everything has zero classification edge cases. Restore is a
  * mirror (clear target first, then copy back) with mods\ protected on the
  * root slot, so a restore is a true rollback; the mandatory pre-restore
- * snapshot is the undo path.
+ * snapshot is the undo path. The config slot is the exception: it overlays
+ * just the manifest files and never touches characters.
+ *
+ * Storage format (M6): each slot lands either as slots\<seg>\ (folder) or
+ * slots\<seg>.zip, chosen per backup via `zip`; restore probes which one
+ * exists. The config slot only ever contains the manifest files, in both
+ * formats.
  *
  * Every function takes an explicit saveDir so headless probes can exercise
  * the full flow against a sandbox dir — commands pass the real saveRoot().
@@ -18,6 +26,7 @@ import {
   isValidModName,
   pathExists,
 } from "./paths.js";
+import { zipDir, unzipToDir } from "./zip.js";
 import { configDir, newId } from "./config.js";
 import { runPowerShell, parseOkMarker } from "./ps.js";
 
@@ -25,23 +34,59 @@ import { runPowerShell, parseOkMarker } from "./ps.js";
 // Slots
 // ---------------------------------------------------------------------------
 
-export type SaveSlot = string; // "root" | "mods/<valid name>"
+export type SaveSlot = string; // "root" | "mods/<valid name>" | "config"
 
 export function isSaveSlot(slot: string): slot is SaveSlot {
-  if (slot === "root") return true;
+  if (slot === "root" || slot === "config") return true;
   const m = /^mods\/(.+)$/.exec(slot);
   return m !== null && m[1] !== undefined && isValidModName(m[1]);
 }
 
 export function slotSourcePath(saveDir: string, slot: SaveSlot): string {
-  if (slot === "root") return saveDir;
+  if (slot === "root" || slot === "config") return saveDir;
   const name = slot.slice("mods/".length);
   return joinPath(saveDir, "mods", name);
 }
 
 /** Safe single path segment for the snapshot's slots\<dir>. */
 function slotSegment(slot: SaveSlot): string {
-  return slot === "root" ? "root" : slot.slice("mods/".length);
+  return slot === "root" ? "root" : slot === "config" ? "config" : slot.slice("mods/".length);
+}
+
+// ---------------------------------------------------------------------------
+// Config manifest (pseudo-slot collection semantics — inclusion, not tree)
+// ---------------------------------------------------------------------------
+
+/** Lower-cased top-level names always in the config manifest. */
+const CONFIG_MANIFEST_NAMES = new Set(["settings.json", "lootfilter.json"]);
+
+/** Top-level manifest files of the save root: Settings.json,
+ *  lootfilter.json, *.fltr. Never recurses, never touches .d2s. */
+async function listConfigManifestFiles(saveDir: string): Promise<string[]> {
+  const out: string[] = [];
+  const d = await tjs.readDir(saveDir);
+  for await (const e of d) {
+    if (!e.isFile) continue;
+    const lower = e.name.toLowerCase();
+    if (CONFIG_MANIFEST_NAMES.has(lower) || lower.endsWith(".fltr")) out.push(e.name);
+  }
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+async function copyConfigManifest(
+  saveDir: string,
+  dstDir: string,
+): Promise<{ files: number; bytes: number }> {
+  const names = await listConfigManifestFiles(saveDir);
+  await tjs.makeDir(dstDir, { recursive: true });
+  let bytes = 0;
+  for (const n of names) {
+    const src = joinPath(saveDir, n);
+    const st = await tjs.stat(src);
+    await tjs.copyFile(src, joinPath(dstDir, n));
+    bytes += st.size;
+  }
+  return { files: names.length, bytes };
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +225,10 @@ export interface BackupMeta {
   scopes: { slot: SaveSlot; sourcePath: string }[];
   files: number;
   bytes: number;
+  /** sum of file sizes in the snapshot payload */
+  size: number;
+  /** storage format: every slot stored as slots\<seg>.zip */
+  zip: boolean;
   /** sorted slot signature — prune keeps N per signature */
   signature: string;
 }
@@ -271,6 +320,35 @@ function signatureOf(slots: SaveSlot[]): string {
   return [...slots].sort().join("+");
 }
 
+/** Recursive byte total of a backup dir (payload + meta). */
+async function dirBytes(dir: string): Promise<number> {
+  let total = 0;
+  const d = await tjs.readDir(dir);
+  for await (const e of d) {
+    const p = joinPath(dir, e.name);
+    if (e.isDirectory) {
+      total += await dirBytes(p);
+    } else if (e.isFile) {
+      try {
+        total += (await tjs.stat(p)).size;
+      } catch {
+        /* raced delete */
+      }
+    }
+  }
+  return total;
+}
+
+/** True when every scope of the backup is stored as slots\<seg>.zip. */
+async function backupIsZip(root: string, id: string, scopes: BackupMeta["scopes"]): Promise<boolean> {
+  for (const s of scopes) {
+    if (!(await pathExists(joinPath(root, id, "slots", `${slotSegment(s.slot)}.zip`)))) {
+      return false;
+    }
+  }
+  return scopes.length > 0;
+}
+
 export async function listBackups(): Promise<{ dir: string; backups: BackupMeta[] }> {
   const root = backupsRoot();
   const out: BackupMeta[] = [];
@@ -280,7 +358,11 @@ export async function listBackups(): Promise<{ dir: string; backups: BackupMeta[
     if (!e.isDirectory || !/^[A-Za-z0-9_-]+$/.test(e.name)) continue;
     try {
       const raw = await tjs.readFile(joinPath(root, e.name, "meta.json"));
-      out.push(JSON.parse(new TextDecoder().decode(raw)) as BackupMeta);
+      const meta = JSON.parse(new TextDecoder().decode(raw)) as BackupMeta;
+      // size/zip are derived, not trusted from disk — legacy backups lack them.
+      meta.size = await dirBytes(joinPath(root, e.name));
+      meta.zip = await backupIsZip(root, e.name, meta.scopes ?? []);
+      out.push(meta);
     } catch (err) {
       console.warn(`[d2rbox] backup ${e.name} meta unreadable:`, err);
     }
@@ -310,17 +392,20 @@ export async function createBackup(opts: {
   note?: string;
   trigger: BackupTrigger;
   backupKeep: number;
+  /** true → each slot stored as slots\<seg>.zip (config slot included) */
+  zip?: boolean;
 }): Promise<BackupMeta> {
   const slots = [...new Set(opts.slots)];
   if (slots.length === 0) throw new Error("未选择要备份的存档范围");
   for (const s of slots) {
     if (!isSaveSlot(s)) throw new Error(`非法存档范围：${s}`);
   }
+  const zip = opts.zip === true;
 
   const resolved: { slot: SaveSlot; sourcePath: string }[] = [];
   for (const slot of slots) {
     const p = slotSourcePath(opts.saveDir, slot);
-    if (!(await pathExists(p))) {
+    if (slot !== "config" && !(await pathExists(p))) {
       throw new Error(`存档目录不存在，无法备份：${p}`);
     }
     resolved.push({ slot, sourcePath: p });
@@ -332,13 +417,39 @@ export async function createBackup(opts: {
   let bytes = 0;
   try {
     for (const r of resolved) {
-      const out = await copyTree(
-        r.sourcePath,
-        joinPath(dir, "slots", slotSegment(r.slot)),
-        r.slot === "root" ? ["mods"] : [],
-      );
-      files += out.files;
-      bytes += out.bytes;
+      const seg = slotSegment(r.slot);
+      if (r.slot === "config") {
+        // 包含清单语义：无论 zip 与否，只收 Settings.json /
+        // lootfilter.json / *.fltr（不递归）。
+        if (zip) {
+          const stage = joinPath(dir, "slots", `.tmp-config-${Date.now()}`);
+          await copyConfigManifest(opts.saveDir, stage);
+          const z = await zipDir(stage, joinPath(dir, "slots", `${seg}.zip`));
+          await tjs.remove(stage, { recursive: true, maxRetries: 2, retryDelay: 200 });
+          files += z.files;
+          bytes += z.bytes;
+        } else {
+          const c = await copyConfigManifest(opts.saveDir, joinPath(dir, "slots", seg));
+          files += c.files;
+          bytes += c.bytes;
+        }
+      } else if (zip) {
+        const z = await zipDir(
+          r.sourcePath,
+          joinPath(dir, "slots", `${seg}.zip`),
+          { excludeTop: r.slot === "root" ? ["mods"] : [] },
+        );
+        files += z.files;
+        bytes += z.bytes;
+      } else {
+        const out = await copyTree(
+          r.sourcePath,
+          joinPath(dir, "slots", seg),
+          r.slot === "root" ? ["mods"] : [],
+        );
+        files += out.files;
+        bytes += out.bytes;
+      }
     }
     const meta: BackupMeta = {
       id,
@@ -348,6 +459,8 @@ export async function createBackup(opts: {
       scopes: resolved,
       files,
       bytes,
+      size: bytes,
+      zip,
       signature: signatureOf(slots),
     };
     await tjs.writeFile(joinPath(dir, "meta.json"), JSON.stringify(meta, null, 2));
@@ -366,6 +479,8 @@ export async function createBackup(opts: {
     scopes: resolved,
     files,
     bytes,
+    size: bytes,
+    zip,
     signature: signatureOf(slots),
   };
 }
@@ -426,12 +541,51 @@ export async function restoreBackup(opts: {
   }
 
   for (const s of meta.scopes) {
+    const seg = slotSegment(s.slot);
+
+    if (s.slot === "config") {
+      // 配置槽例外：不清空、不镜像，只把清单文件覆盖写回存档根，
+      // 角色 .d2s 等一律不碰。
+      const srcDir = joinPath(dir, "slots", seg);
+      const zipFile = `${srcDir}.zip`;
+      let manifestDir = srcDir;
+      let tempDir: string | null = null;
+      if (await pathExists(zipFile)) {
+        tempDir = joinPath(dir, "slots", `.tmp-unzip-${seg}-${Date.now()}`);
+        await unzipToDir(zipFile, tempDir);
+        manifestDir = tempDir;
+      } else if (!(await pathExists(srcDir))) {
+        throw new Error(`快照缺少槽内容，备份可能不完整：${s.slot}`);
+      }
+      try {
+        for (const name of await listConfigManifestFiles(manifestDir)) {
+          await tjs.copyFile(joinPath(manifestDir, name), joinPath(opts.saveDir, name));
+        }
+      } finally {
+        if (tempDir) {
+          await tjs.remove(tempDir, { recursive: true, maxRetries: 2, retryDelay: 200 }).catch(() => undefined);
+        }
+      }
+      continue;
+    }
+
+    const srcDir = joinPath(dir, "slots", seg);
+    const zipFile = `${srcDir}.zip`;
     const dst = slotSourcePath(opts.saveDir, s.slot);
-    const src = joinPath(dir, "slots", slotSegment(s.slot));
-    if (!(await pathExists(src))) {
+    if (await pathExists(srcDir)) {
+      await mirrorInto(srcDir, dst, s.slot === "root" ? ["mods"] : []);
+    } else if (await pathExists(zipFile)) {
+      // zip 槽：解压到备份目录下的临时目录，再走与文件夹相同的镜像还原。
+      const tempDir = joinPath(dir, "slots", `.tmp-unzip-${seg}-${Date.now()}`);
+      try {
+        await unzipToDir(zipFile, tempDir);
+        await mirrorInto(tempDir, dst, s.slot === "root" ? ["mods"] : []);
+      } finally {
+        await tjs.remove(tempDir, { recursive: true, maxRetries: 2, retryDelay: 200 }).catch(() => undefined);
+      }
+    } else {
       throw new Error(`快照缺少槽内容，备份可能不完整：${s.slot}`);
     }
-    await mirrorInto(src, dst, s.slot === "root" ? ["mods"] : []);
   }
   return { ok: true, preRestoreId };
 }

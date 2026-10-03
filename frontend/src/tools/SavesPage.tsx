@@ -11,6 +11,7 @@ import type {
   AppConfigView,
   BackupMetaView,
   CharacterView,
+  SaveFileEntryView,
   SaveGroupView,
   StashPreflightView,
   TransferResultView,
@@ -40,7 +41,9 @@ const TRIGGER_CLASS: Record<Trigger, string> = {
 };
 
 function slotLabel(slot: string): string {
-  return slot === "root" ? "主存档" : `mod存档：${slot.slice("mods/".length)}`;
+  if (slot === "root") return "主存档";
+  if (slot === "config") return "仅配置";
+  return `mod存档：${slot.slice("mods/".length)}`;
 }
 
 /** Rough save-file classification for the overview card. */
@@ -71,21 +74,24 @@ export function SavesPage(props: { config: AppConfigView; refreshConfig: () => v
   const [restore, setRestore] = useState<BackupMetaView | null>(null);
   const [transferFrom, setTransferFrom] = useState<string | null>(null);
 
-  // prefs — optimistic local copy of config.autoBackup / config.backupKeep
+  // prefs — optimistic local copy of config.autoBackup / config.backupKeep / config.backupZip
   const [autoBackup, setAutoBackup] = useState(props.config.autoBackup);
   const [keep, setKeep] = useState(props.config.backupKeep);
+  const [zip, setZip] = useState(props.config.backupZip);
   useEffect(() => {
     setAutoBackup(props.config.autoBackup);
     setKeep(props.config.backupKeep);
-  }, [props.config.autoBackup, props.config.backupKeep]);
+    setZip(props.config.backupZip);
+  }, [props.config.autoBackup, props.config.backupKeep, props.config.backupZip]);
 
-  const savePrefs = async (patch: { autoBackup?: boolean; backupKeep?: number }) => {
+  const savePrefs = async (patch: { autoBackup?: boolean; backupKeep?: number; backupZip?: boolean }) => {
     setBusy(true);
     setError(null);
     try {
       const r = await invoke("d2r:setSavePrefs", patch);
       setAutoBackup(r.autoBackup);
       setKeep(r.backupKeep);
+      setZip(r.backupZip);
       props.refreshConfig();
     } catch (err) {
       setError(errMsg(err));
@@ -160,6 +166,17 @@ export function SavesPage(props: { config: AppConfigView; refreshConfig: () => v
           />
           份
         </label>
+        <label className="flex cursor-pointer items-center gap-2" title="新备份存为 .zip；旧备份仍可正常还原">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-violet-500"
+            checked={zip}
+            disabled={busy}
+            onChange={(e) => void savePrefs({ backupZip: e.target.checked })}
+          />
+          新备份使用 zip 压缩
+          <span className="text-[11px] text-neutral-600">（旧备份仍可正常还原）</span>
+        </label>
         {backups.data && (
           <div className="ml-auto flex min-w-0 items-center gap-2 text-xs text-neutral-500">
             <span className="truncate" title={backups.data.dir}>
@@ -197,6 +214,10 @@ export function SavesPage(props: { config: AppConfigView; refreshConfig: () => v
         <BackupDialog
           root={overview.data.root}
           mods={overview.data.mods.filter((m) => m.exists)}
+          configFiles={overview.data.root.files.filter((f) => {
+            const k = classify(f.name);
+            return k === "settings" || k === "filter";
+          })}
           busy={busy}
           setBusy={setBusy}
           setError={setError}
@@ -407,6 +428,7 @@ function SnapshotList(props: {
             <tr>
               <th className="px-4 py-2.5 font-medium">时间</th>
               <th className="px-3 py-2.5 font-medium">来源</th>
+              <th className="px-3 py-2.5 font-medium">格式</th>
               <th className="px-3 py-2.5 font-medium">范围</th>
               <th className="px-3 py-2.5 font-medium">大小</th>
               <th className="px-3 py-2.5 font-medium">备注</th>
@@ -423,6 +445,16 @@ function SnapshotList(props: {
                   </span>
                 </td>
                 <td className="px-3 py-2.5">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      b.zip ? "bg-sky-500/15 text-sky-300" : "bg-neutral-700/50 text-neutral-300"
+                    }`}
+                    title={b.zip ? "槽内容存储为 .zip" : "槽内容存储为文件夹"}
+                  >
+                    {b.zip ? "zip" : "文件夹"}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5">
                   <span className="flex flex-wrap gap-1">
                     {b.scopes.map((s) => (
                       <span key={s.slot} className="rounded bg-neutral-800/70 px-1.5 py-0.5 text-xs text-neutral-300">
@@ -432,7 +464,7 @@ function SnapshotList(props: {
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-xs text-neutral-400">
-                  {b.files} 文件 · {formatBytes(b.bytes)}
+                  {b.files} 文件 · 占用 {formatBytes(b.size)}
                 </td>
                 <td className="max-w-[16rem] px-3 py-2.5">
                   <NoteCell id={b.id} note={b.note} />
@@ -531,6 +563,7 @@ function ConfirmButton(props: { disabled: boolean; onConfirm: () => void }) {
 function BackupDialog(props: {
   root: SaveGroupView;
   mods: SaveGroupView[];
+  configFiles: SaveFileEntryView[];
   busy: boolean;
   setBusy: (b: boolean) => void;
   setError: (e: string | null) => void;
@@ -585,6 +618,14 @@ function BackupDialog(props: {
             <input type="checkbox" className="h-4 w-4 accent-violet-500" checked={selected.has("root")} onChange={() => toggle("root")} />
             <span className="text-sm text-neutral-100">主存档</span>
             <span className="ml-auto text-xs text-neutral-500">{props.root.files.length} 文件 · {formatBytes(props.root.totalBytes)}</span>
+          </label>
+        )}
+        {props.root.exists && props.configFiles.length > 0 && (
+          <label className="flex items-center gap-2.5 rounded-lg border border-neutral-800 px-3 py-2.5 hover:border-neutral-700">
+            <input type="checkbox" className="h-4 w-4 accent-violet-500" checked={selected.has("config")} onChange={() => toggle("config")} />
+            <span className="text-sm text-neutral-100">仅配置</span>
+            <span className="ml-1 text-[11px] text-neutral-500">Settings.json / 过滤器</span>
+            <span className="ml-auto text-xs text-neutral-500">{props.configFiles.length} 文件 · {formatBytes(props.configFiles.reduce((n, f) => n + f.size, 0))}</span>
           </label>
         )}
         {props.mods.map((m) => (
@@ -675,7 +716,9 @@ function RestoreDialog(props: {
       ) : (
         <div className="space-y-3 text-sm">
           <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3.5 py-3 text-red-300">
-            最终确认：游戏运行中无法还原。还原会覆盖所选范围的当前存档，请确保已了解将回退的内容。
+            {props.meta.scopes.every((s) => s.slot === "config")
+              ? "最终确认：将覆盖配置与过滤器文件，不影响角色存档。游戏运行中无法还原。"
+              : "最终确认：游戏运行中无法还原。还原会覆盖所选范围的当前存档，请确保已了解将回退的内容。"}
           </div>
           {props.meta.note && <p className="text-xs text-neutral-400">快照备注：{props.meta.note}</p>}
         </div>

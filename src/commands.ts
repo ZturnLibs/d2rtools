@@ -125,6 +125,7 @@ const getConfig = defineCommand("d2r:getConfig", {
       installed: Record<string, { mode: string; installedAt: number; sourcePath: string }>;
       autoBackup: boolean;
       backupKeep: number;
+      backupZip: boolean;
     };
     validation: { exists: boolean; hasD2R: boolean; hasModsDir: boolean } | null;
   },
@@ -140,6 +141,7 @@ const getConfig = defineCommand("d2r:getConfig", {
         installed: config.installed,
         autoBackup: config.autoBackup,
         backupKeep: config.backupKeep,
+        backupZip: config.backupZip,
       },
       validation: config.gameDir ? await validateGameDir(config.gameDir) : null,
     };
@@ -437,6 +439,7 @@ const launch = defineCommand("d2r:launch", {
           note: `启动 ${modName} 前自动备份`,
           trigger: "auto-launch",
           backupKeep: config.backupKeep,
+          zip: config.backupZip,
         });
         console.log(`[d2rbox] auto backup ${backup.id} (${backup.files} files) before launch`);
       } catch (err) {
@@ -527,6 +530,8 @@ const listBackupsCmd = defineCommand("d2r:listBackups", {
       scopes: { slot: string; sourcePath: string }[];
       files: number;
       bytes: number;
+      size: number;
+      zip: boolean;
       signature: string;
     }[];
   },
@@ -544,6 +549,8 @@ const backupNow = defineCommand("d2r:backupNow", {
       scopes: { slot: string; sourcePath: string }[];
       files: number;
       bytes: number;
+      size: number;
+      zip: boolean;
       signature: string;
     };
   },
@@ -559,6 +566,7 @@ const backupNow = defineCommand("d2r:backupNow", {
       note: args.note,
       trigger: "manual",
       backupKeep: config.backupKeep,
+      zip: config.backupZip,
     });
     return { backup };
   },
@@ -592,8 +600,8 @@ const setBackupNote = defineCommand("d2r:setBackupNote", {
 });
 
 const setSavePrefs = defineCommand("d2r:setSavePrefs", {
-  args: {} as { autoBackup?: boolean; backupKeep?: number },
-  result: {} as { ok: boolean; autoBackup: boolean; backupKeep: number },
+  args: {} as { autoBackup?: boolean; backupKeep?: number; backupZip?: boolean },
+  result: {} as { ok: boolean; autoBackup: boolean; backupKeep: number; backupZip: boolean },
   handler: async (args) => {
     if (args.autoBackup !== undefined && typeof args.autoBackup !== "boolean") {
       throw new Error("autoBackup 必须是布尔值");
@@ -603,12 +611,16 @@ const setSavePrefs = defineCommand("d2r:setSavePrefs", {
         throw new Error("保留份数需为 1-100 的整数");
       }
     }
+    if (args.backupZip !== undefined && typeof args.backupZip !== "boolean") {
+      throw new Error("backupZip 必须是布尔值");
+    }
     const cfg = await updateConfig((c) => ({
       ...c,
       autoBackup: args.autoBackup ?? c.autoBackup,
       backupKeep: args.backupKeep ?? c.backupKeep,
+      backupZip: args.backupZip ?? c.backupZip,
     }));
-    return { ok: true, autoBackup: cfg.autoBackup, backupKeep: cfg.backupKeep };
+    return { ok: true, autoBackup: cfg.autoBackup, backupKeep: cfg.backupKeep, backupZip: cfg.backupZip };
   },
 });
 

@@ -6,7 +6,7 @@ import { invoke as rawInvoke } from "@zturnlibs/ztron-api";
 import type { InvokeOptions } from "@zturnlibs/ztron-api";
 
 export type KnownCommands = {
-    "d2r:getConfig": { args: Record<string, never>; result: { config: { version: number; gameDir: string | null; sources: { id: string; path: string; label: string; addedAt: number }[]; knownMods: { key: string; name: string; displayName: string | null; savepath: string; sourceId: string; sourcePath: string; relPath: string; variant: string; parseWarning: string | null; readmePath: string | null; }[]; profiles: { id: string; name: string; modName: string; extraArgs: string[]; note: string; createdAt: number }[]; installed: Record<string, { mode: string; installedAt: number; sourcePath: string }>; autoBackup: boolean; backupKeep: number; }; validation: { exists: boolean; hasD2R: boolean; hasModsDir: boolean } | null; } }
+    "d2r:getConfig": { args: Record<string, never>; result: { config: { version: number; gameDir: string | null; sources: { id: string; path: string; label: string; addedAt: number }[]; knownMods: { key: string; name: string; displayName: string | null; savepath: string; sourceId: string; sourcePath: string; relPath: string; variant: string; parseWarning: string | null; readmePath: string | null; }[]; profiles: { id: string; name: string; modName: string; extraArgs: string[]; note: string; createdAt: number }[]; installed: Record<string, { mode: string; installedAt: number; sourcePath: string }>; autoBackup: boolean; backupKeep: number; backupZip: boolean; }; validation: { exists: boolean; hasD2R: boolean; hasModsDir: boolean } | null; } }
     "d2r:setGameDir": { args: { gameDir: string }; result: { ok: boolean; validation: { exists: boolean; hasD2R: boolean; hasModsDir: boolean } } }
     "d2r:pickFolder": { args: { title?: string }; result: { path: string | null } }
     "d2r:addSource": { args: { path: string; label?: string }; result: { source: { id: string; path: string; label: string; addedAt: number }; } }
@@ -22,12 +22,12 @@ export type KnownCommands = {
     "d2r:exportShortcut": { args: { name: string; modName: string; extraArgs: string[] }; result: { lnkPath: string } }
     "d2r:openDir": { args: { path: string }; result: { ok: boolean } }
     "d2r:saveOverview": { args: Record<string, never>; result: { root: { name: string; slot: string; path: string; exists: boolean; files: { name: string; size: number; mtime: number }[]; dirs: { name: string; files: number; bytes: number }[]; totalBytes: number; }; mods: { name: string; slot: string; path: string; exists: boolean; files: { name: string; size: number; mtime: number }[]; dirs: { name: string; files: number; bytes: number }[]; totalBytes: number; }[]; } }
-    "d2r:listBackups": { args: Record<string, never>; result: { dir: string; backups: { id: string; createdAt: number; note: string; trigger: string; scopes: { slot: string; sourcePath: string }[]; files: number; bytes: number; signature: string; }[]; } }
-    "d2r:backupNow": { args: { slots: string[]; note?: string }; result: { backup: { id: string; createdAt: number; note: string; trigger: string; scopes: { slot: string; sourcePath: string }[]; files: number; bytes: number; signature: string; }; } }
+    "d2r:listBackups": { args: Record<string, never>; result: { dir: string; backups: { id: string; createdAt: number; note: string; trigger: string; scopes: { slot: string; sourcePath: string }[]; files: number; bytes: number; size: number; zip: boolean; signature: string; }[]; } }
+    "d2r:backupNow": { args: { slots: string[]; note?: string }; result: { backup: { id: string; createdAt: number; note: string; trigger: string; scopes: { slot: string; sourcePath: string }[]; files: number; bytes: number; size: number; zip: boolean; signature: string; }; } }
     "d2r:restoreBackup": { args: { id: string }; result: { ok: boolean; preRestoreId: string | null } }
     "d2r:deleteBackup": { args: { id: string }; result: { ok: boolean } }
     "d2r:setBackupNote": { args: { id: string; note: string }; result: { ok: boolean } }
-    "d2r:setSavePrefs": { args: { autoBackup?: boolean; backupKeep?: number }; result: { ok: boolean; autoBackup: boolean; backupKeep: number } }
+    "d2r:setSavePrefs": { args: { autoBackup?: boolean; backupKeep?: number; backupZip?: boolean }; result: { ok: boolean; autoBackup: boolean; backupKeep: number; backupZip: boolean } }
     "d2r:checkGameRunning": { args: Record<string, never>; result: { running: boolean } }
     "d2r:stashPickFile": { args: { title?: string }; result: { path: string | null } }
     "d2r:stashPreflight": { args: { slot: string }; result: { slot: string; fileName: string; path: string; exists: boolean; size: number; mtime: number; gameRunning: boolean; } }

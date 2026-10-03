@@ -55,7 +55,7 @@
 - 前端按"工具"组织：左侧工具导航（Mod 管理 / 存档管家 / 仓库向导 / 设置），每个工具是独立路由模块
 - 后端按"能力"组织：`services/` 下每个领域一个服务（modLibrary、saveManager、stashWizard、scriptRunner），通过 ztron commands 暴露给前端，`ztron codegen` 生成类型绑定
 - 配置持久化：ztron store 插件（游戏路径、仓库目录列表、备份保留策略、各工具设置）
-- 后续候选工具：lootfilter/.fltr 管理、Settings.json 备份、存档转移（主存档 ↔ mod 存档）、mod 更新检测
+- 后续候选工具：~~lootfilter/.fltr 管理~~（已落地 M5）、~~Settings.json 备份~~与 zip 压缩备份（已落地 M6）、存档转移（主存档 ↔ mod 存档）、mod 更新检测（仍留待社群渠道决策）
 
 ## 5. 技术架构
 

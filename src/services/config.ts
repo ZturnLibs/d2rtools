@@ -59,6 +59,8 @@ export interface AppConfig {
   autoBackup: boolean;
   /** Snapshots kept per scope signature (root / mods\<name> combos). */
   backupKeep: number;
+  /** Store new snapshots as slots\<seg>.zip instead of folders (M6). */
+  backupZip: boolean;
 }
 
 export function defaultConfig(): AppConfig {
@@ -71,6 +73,7 @@ export function defaultConfig(): AppConfig {
     installed: {},
     autoBackup: true,
     backupKeep: 10,
+    backupZip: true,
   };
 }
 
