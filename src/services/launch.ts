@@ -62,20 +62,29 @@ export async function pickFolder(title: string): Promise<string | null> {
 }
 
 /** Native file picker via OpenFileDialog (same story as pickFolder — the
- *  host's file dialog can't be aimed from the backend). Returns null when
- *  the user cancels. */
+ *  host's file dialog can't be aimed from the backend). With `save:true`
+ *  it becomes a SaveFileDialog (save-as mode, overwrite prompt, suggested
+ *  file name). Returns null when the user cancels. */
 export async function pickFile(opts: {
   title: string;
   filterName: string; // e.g. "仓库文件"
   pattern: string; // e.g. "*.d2i"
+  save?: boolean;
+  defaultName?: string; // save mode: suggested file name
 }): Promise<string | null> {
+  const dialogType = opts.save ? "SaveFileDialog" : "OpenFileDialog";
   const script = [
     "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8",
     "Add-Type -AssemblyName System.Windows.Forms | Out-Null",
-    "$dlg = New-Object System.Windows.Forms.OpenFileDialog",
+    `$dlg = New-Object System.Windows.Forms.${dialogType}`,
     "$dlg.Title = $env:D2R_PICK_TITLE",
     "$dlg.Filter = $env:D2R_PICK_FILTER + ' (' + $env:D2R_PICK_PATTERN + ')|' + $env:D2R_PICK_PATTERN",
-    "$dlg.DereferenceLinks = $true",
+    ...(opts.save
+      ? ["$dlg.OverwritePrompt = $true"]
+      : ["$dlg.DereferenceLinks = $true"]),
+    ...(opts.save && opts.defaultName
+      ? ["$dlg.FileName = $env:D2R_PICK_DEFAULT"]
+      : []),
     "$owner = New-Object System.Windows.Forms.Form",
     "$owner.TopMost = $true",
     "if ($dlg.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output ('__D2R_OK__' + $dlg.FileName) }",
@@ -87,6 +96,9 @@ export async function pickFile(opts: {
       D2R_PICK_TITLE: opts.title,
       D2R_PICK_FILTER: opts.filterName,
       D2R_PICK_PATTERN: opts.pattern,
+      ...(opts.save && opts.defaultName
+        ? { D2R_PICK_DEFAULT: opts.defaultName }
+        : {}),
     },
     timeoutMs: 120_000,
   });

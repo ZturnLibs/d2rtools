@@ -49,6 +49,20 @@ import {
 } from "./services/saves.js";
 import { stashPreflight, stashReplace, isStashSlot } from "./services/stash.js";
 import {
+  listPresets,
+  readPreset,
+  summarizeRule,
+  updatePreset,
+  listPresetBackups,
+  restorePresetBackup,
+  deletePresetBackup,
+  importPreset,
+  exportPreset,
+  duplicatePreset,
+  renamePreset,
+  deletePreset,
+} from "./services/lootfilter.js";
+import {
   scanModScripts,
   runModScript,
   type ScriptRunLine,
@@ -755,6 +769,105 @@ const transferCharactersCmd = defineCommand("d2r:transferCharacters", {
   },
 });
 
+// ---------------------------------------------------------------------------
+// 掉落过滤 (M5) — 游戏自带 .fltr 预设的管理（SwitchNoDrop 原生重写已证伪，见 §3.4）
+// ---------------------------------------------------------------------------
+
+const filterList = defineCommand("d2r:filterList", {
+  args: {} as Record<string, never>,
+  result: {} as {
+    presets: { file: string; name: string; ruleCount: number; enabledCount: number; mtime: number; size: number }[];
+    root: string;
+    rootExists: boolean;
+  },
+  handler: async () => {
+    const root = await saveRoot();
+    return { presets: await listPresets(), root, rootExists: await pathExists(root) };
+  },
+});
+
+const filterRead = defineCommand("d2r:filterRead", {
+  args: {} as { file: string },
+  result: {} as {
+    name: string;
+    rules: { name?: unknown; enabled?: unknown; ruleType?: unknown; [key: string]: unknown }[];
+    summaries: string[];
+    warning: string | null;
+  },
+  handler: async (args) => {
+    const r = await readPreset(args.file);
+    return { ...r, summaries: r.rules.map((rule) => summarizeRule(rule)) };
+  },
+});
+
+const filterUpdate = defineCommand("d2r:filterUpdate", {
+  args: {} as { file: string; changes: { index: number; enabled: boolean }[] },
+  result: {} as { backedUp: string | null; changed: number; gameRunning: boolean },
+  handler: async (args) => {
+    const changes = Array.isArray(args.changes) ? args.changes : [];
+    for (const c of changes) {
+      if (!Number.isInteger(c.index) || typeof c.enabled !== "boolean") {
+        throw new Error("规则修改项格式不正确（需要 index + enabled）");
+      }
+    }
+    return updatePreset(args.file, changes);
+  },
+});
+
+const filterBackups = defineCommand("d2r:filterBackups", {
+  args: {} as { file: string },
+  result: {} as { backups: { name: string; mtime: number; size: number }[] },
+  handler: async (args) => ({ backups: await listPresetBackups(args.file) }),
+});
+
+const filterRestoreBackup = defineCommand("d2r:filterRestoreBackup", {
+  args: {} as { file: string; backup: string },
+  result: {} as { ok: boolean; backedUp: string | null },
+  handler: async (args) => {
+    const r = await restorePresetBackup(args.file, args.backup);
+    return { ok: r.restored, backedUp: r.backedUp };
+  },
+});
+
+const filterDeleteBackup = defineCommand("d2r:filterDeleteBackup", {
+  args: {} as { file: string; backup: string },
+  result: {} as { ok: boolean },
+  handler: async (args) => {
+    await deletePresetBackup(args.file, args.backup);
+    return { ok: true };
+  },
+});
+
+const filterImport = defineCommand("d2r:filterImport", {
+  args: {} as Record<string, never>,
+  result: {} as { file: string | null },
+  handler: async () => importPreset(),
+});
+
+const filterExport = defineCommand("d2r:filterExport", {
+  args: {} as { file: string },
+  result: {} as { path: string | null },
+  handler: async (args) => exportPreset(args.file),
+});
+
+const filterDuplicate = defineCommand("d2r:filterDuplicate", {
+  args: {} as { file: string; newName: string },
+  result: {} as { file: string },
+  handler: async (args) => duplicatePreset(args.file, args.newName),
+});
+
+const filterRename = defineCommand("d2r:filterRename", {
+  args: {} as { file: string; newName: string },
+  result: {} as { file: string },
+  handler: async (args) => renamePreset(args.file, args.newName),
+});
+
+const filterDelete = defineCommand("d2r:filterDelete", {
+  args: {} as { file: string },
+  result: {} as { ok: boolean; backedUp: string | null },
+  handler: async (args) => deletePreset(args.file),
+});
+
 /** All command defs, individually typed — register each via app.commandDef
  *  (a heterogeneous array would collapse the phantom types to a union). */
 export const commandDefs = {
@@ -788,4 +901,15 @@ export const commandDefs = {
   runScript,
   listCharacters: listCharactersCmd,
   transferCharacters: transferCharactersCmd,
+  filterList,
+  filterRead,
+  filterUpdate,
+  filterBackups,
+  filterRestoreBackup,
+  filterDeleteBackup,
+  filterImport,
+  filterExport,
+  filterDuplicate,
+  filterRename,
+  filterDelete,
 };

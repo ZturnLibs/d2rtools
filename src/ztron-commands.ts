@@ -36,6 +36,17 @@ export type KnownCommands = {
     "d2r:runScript": { args: { modName: string; fileName: string; ch: string }; result: { ok: boolean; code: number | null; timedOut: boolean } }
     "d2r:listCharacters": { args: { slot: string }; result: { slot: string; path: string; exists: boolean; characters: { name: string; d2sName: string; size: number; mtime: number; companions: { name: string; size: number }[]; }[]; } }
     "d2r:transferCharacters": { args: { fromSlot: string; toSlot: string; names: string[]; mode: string; }; result: { ok: boolean; backupId: string | null; characters: number; files: number; mode: string; } }
+    "d2r:filterList": { args: Record<string, never>; result: { presets: { file: string; name: string; ruleCount: number; enabledCount: number; mtime: number; size: number }[]; root: string; rootExists: boolean; } }
+    "d2r:filterRead": { args: { file: string }; result: { name: string; rules: { name?: unknown; enabled?: unknown; ruleType?: unknown; [key: string]: unknown }[]; summaries: string[]; warning: string | null; } }
+    "d2r:filterUpdate": { args: { file: string; changes: { index: number; enabled: boolean }[] }; result: { backedUp: string | null; changed: number; gameRunning: boolean } }
+    "d2r:filterBackups": { args: { file: string }; result: { backups: { name: string; mtime: number; size: number }[] } }
+    "d2r:filterRestoreBackup": { args: { file: string; backup: string }; result: { ok: boolean; backedUp: string | null } }
+    "d2r:filterDeleteBackup": { args: { file: string; backup: string }; result: { ok: boolean } }
+    "d2r:filterImport": { args: Record<string, never>; result: { file: string | null } }
+    "d2r:filterExport": { args: { file: string }; result: { path: string | null } }
+    "d2r:filterDuplicate": { args: { file: string; newName: string }; result: { file: string } }
+    "d2r:filterRename": { args: { file: string; newName: string }; result: { file: string } }
+    "d2r:filterDelete": { args: { file: string }; result: { ok: boolean; backedUp: string | null } }
 };
 
 /** Type-safe invoke: cmd must be a known command, args/result inferred from its declaration. */
@@ -80,6 +91,17 @@ export async function invoke(
   if (cmd === "d2r:runScript") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:listCharacters") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:transferCharacters") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:filterList") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:filterRead") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:filterUpdate") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:filterBackups") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:filterRestoreBackup") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:filterDeleteBackup") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:filterImport") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:filterExport") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:filterDuplicate") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:filterRename") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:filterDelete") return rawInvoke(cmd, args as never, options);
   return rawInvoke(cmd, (args ?? {}) as never, options);
 }
 export default invoke;

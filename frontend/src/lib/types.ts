@@ -25,3 +25,10 @@ export type ScriptInfoView = ModScriptsResult["mods"][number]["scripts"][number]
 export type ListCharactersResult = KnownCommands["d2r:listCharacters"]["result"];
 export type CharacterView = ListCharactersResult["characters"][number];
 export type TransferResultView = KnownCommands["d2r:transferCharacters"]["result"];
+
+// — M5 掉落过滤 —
+export type FilterListResult = KnownCommands["d2r:filterList"]["result"];
+export type FilterPresetView = FilterListResult["presets"][number];
+export type FilterReadResult = KnownCommands["d2r:filterRead"]["result"];
+export type FilterRuleView = FilterReadResult["rules"][number];
+export type FilterBackupView = KnownCommands["d2r:filterBackups"]["result"]["backups"][number];

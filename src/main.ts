@@ -81,7 +81,18 @@ new AppBuilder(runtime, "com.zyj.d2rbox")
     app.commandDef(commandDefs.runScript);
     app.commandDef(commandDefs.listCharacters);
     app.commandDef(commandDefs.transferCharacters);
-    console.log("[d2rbox] registered 30 d2r:* commands");
+    app.commandDef(commandDefs.filterList);
+    app.commandDef(commandDefs.filterRead);
+    app.commandDef(commandDefs.filterUpdate);
+    app.commandDef(commandDefs.filterBackups);
+    app.commandDef(commandDefs.filterRestoreBackup);
+    app.commandDef(commandDefs.filterDeleteBackup);
+    app.commandDef(commandDefs.filterImport);
+    app.commandDef(commandDefs.filterExport);
+    app.commandDef(commandDefs.filterDuplicate);
+    app.commandDef(commandDefs.filterRename);
+    app.commandDef(commandDefs.filterDelete);
+    console.log("[d2rbox] registered 41 d2r:* commands");
   })
   .build()
   .run();
