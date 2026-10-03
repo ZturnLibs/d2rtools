@@ -10,6 +10,7 @@
 [![Version](https://img.shields.io/badge/version-0.1.0-orange)](ztron.conf.json)
 [![Built with](https://img.shields.io/badge/built%20with-ztron%20·%20React%2019-7c3aed)](#技术架构)
 [![Milestones](https://img.shields.io/badge/milestones-M1%20·%20M2%20·%20M3%20%E2%9C%94-success)](#里程碑)
+[![License](https://img.shields.io/badge/license-%E8%87%AA%E5%AE%9A%E4%B9%89%C2%B7%E5%95%86%E7%94%A8%E9%9C%80%E6%8E%88%E6%9D%83-red)](LICENSE.md)
 
 </div>
 
@@ -130,6 +131,14 @@ d2r-research/
 | **M2** | 存档管家 + 大仓库向导（备份/还原/自动备份 · stash 警告+回滚） | ✅ `a063979` |
 | **M3** | 作者脚本受控运行 + 存档转移 + NSIS 打包 | ✅ `d4b1c4a` |
 | 后续 | lootfilter/.fltr 管理 · Settings.json 备份 · mod 更新检测 | 🗺️ 规划中 |
+
+## 授权协议
+
+本项目采用自定义授权协议，全文见 [LICENSE.md](LICENSE.md)：
+
+- ✅ **个人娱乐、学习研究、社群内免费分享** —— 免费使用、修改与分发（须保留版权与协议声明）
+- ❌ **商业使用**（出售、付费整合包、收费代装/托管、商业宣传等）—— 须**事先取得作者书面授权并付费**
+- 授权洽谈：[GitHub Issues](https://github.com/ZturnLibs/d2rtools/issues)
 
 ## 免责声明
 
