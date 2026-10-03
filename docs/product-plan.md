@@ -2,6 +2,7 @@
 
 > 状态：讨论稿 v1 · 2026-10
 > 背景：解决"每次手动配置/修改参数才能用 mod"的痛点；工具定位不限于 mod 管理，后续是一类工具集合。
+> 产品方向参考：`docs/community-research.md`（社区需求调研）、`docs/stash-manager-feasibility.md`（大箱子管理可行性）、`docs/mod-update-download-feasibility.md`（mod 更新/下载可行性）
 
 ## 1. 定位与命名
 
@@ -55,7 +56,7 @@
 - 前端按"工具"组织：左侧工具导航（Mod 管理 / 存档管家 / 仓库向导 / 设置），每个工具是独立路由模块
 - 后端按"能力"组织：`services/` 下每个领域一个服务（modLibrary、saveManager、stashWizard、scriptRunner），通过 ztron commands 暴露给前端，`ztron codegen` 生成类型绑定
 - 配置持久化：ztron store 插件（游戏路径、仓库目录列表、备份保留策略、各工具设置）
-- 后续候选工具：~~lootfilter/.fltr 管理~~（已落地 M5）、~~Settings.json 备份~~与 zip 压缩备份（已落地 M6）、存档转移（主存档 ↔ mod 存档）、mod 更新检测（仍留待社群渠道决策）
+- 后续候选工具：~~lootfilter/.fltr 管理~~（已落地 M5）、~~Settings.json 备份~~与 zip 压缩备份（已落地 M6）、~~存档转移~~（已落地 M3）、物品清单/大箱子管理（M7 起，可行性见 `docs/stash-manager-feasibility.md`）、mod 更新检测与在线 mod 库（可行性见 `docs/mod-update-download-feasibility.md`，原"留待社群渠道决策"已有结论：作者直链模式可行）
 
 ## 5. 技术架构
 
@@ -96,6 +97,9 @@
 | M1 | 工具箱骨架 + Mod 库 + 一键启动 | 术士君临 6 变体全部可安装、可带正确参数启动 |
 | M2 | 存档管家 + 大仓库向导 | 备份/还原/自动备份可用；stash 替换有警告有回滚 |
 | M3 | bat 开关集成 + 打磨 + NSIS 打包（W6/W7） | 群友可装 exe 即用 |
+| M5 | 掉落过滤管理（.fltr 预设原生管理 + 11 条命令 + 工具页 + 27 例测试） | 已落地 |
+| M6 | 存档管家扩容（zip 压缩备份 + config 配置快照槽 + 备份占用显示） | 已落地 |
+| M7 | 物品清单只读页（解析 .d2i/.d2s，按分类/页展示 + 搜索；为大仓库向导"替换前搬家提示"和后续大箱子写入管线铺路） | 各 savepath 的共享仓库与角色物品可浏览可搜索；npm 包 `d2s` 接入并 pnpm patch 修 extendedStash（详见 `docs/stash-manager-feasibility.md` §5-B1） |
 
 ## 8. 风险与开放问题
 
