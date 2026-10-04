@@ -77,6 +77,8 @@ new AppBuilder(runtime, "com.zyj.d2rbox")
     app.commandDef(commandDefs.stashPickFile);
     app.commandDef(commandDefs.stashPreflight);
     app.commandDef(commandDefs.stashReplace);
+    app.commandDef(commandDefs.stashConsistency);
+    app.commandDef(commandDefs.stashHeader);
     app.commandDef(commandDefs.modScripts);
     app.commandDef(commandDefs.runScript);
     app.commandDef(commandDefs.listCharacters);

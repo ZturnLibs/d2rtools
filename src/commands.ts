@@ -65,7 +65,13 @@ import {
   listCharacters,
   transferCharacters,
 } from "./services/saves.js";
-import { stashPreflight, stashReplace, isStashSlot } from "./services/stash.js";
+import {
+  stashPreflight,
+  stashReplace,
+  stashConsistency,
+  readStashHeader,
+  isStashSlot,
+} from "./services/stash.js";
 import {
   listItemSources,
   parseItemFile,
@@ -801,6 +807,58 @@ const stashReplaceCmd = defineCommand("d2r:stashReplace", {
       backupKeep: config.backupKeep,
     });
   },
+});
+
+// M10 — HC/SC 一致性检测（向导第 1 步）与任意路径头部速览（第 2 步导入
+// 文件的页数兜底；物品明细走 d2r:itemView）
+const stashConsistencyCmd = defineCommand("d2r:stashConsistency", {
+  args: {} as Record<string, never>,
+  result: {} as {
+    soft: {
+      slot: string;
+      fileName: string;
+      path: string;
+      exists: boolean;
+      size: number;
+      mtime: number;
+      header: {
+        hardcore: boolean;
+        version: number;
+        sharedGold: number;
+        sectorSize: number;
+        pageCount: number | null;
+      } | null;
+    };
+    hard: {
+      slot: string;
+      fileName: string;
+      path: string;
+      exists: boolean;
+      size: number;
+      mtime: number;
+      header: {
+        hardcore: boolean;
+        version: number;
+        sharedGold: number;
+        sectorSize: number;
+        pageCount: number | null;
+      } | null;
+    };
+    warnings: { level: string; text: string }[];
+  },
+  handler: async () => stashConsistency(await saveRoot()),
+});
+
+const stashHeaderCmd = defineCommand("d2r:stashHeader", {
+  args: {} as { path: string },
+  result: {} as {
+    hardcore: boolean;
+    version: number;
+    sharedGold: number;
+    sectorSize: number;
+    pageCount: number | null;
+  } | null,
+  handler: async (args) => readStashHeader(args.path),
 });
 
 // ---------------------------------------------------------------------------
@@ -1550,6 +1608,8 @@ export const commandDefs = {
   stashPickFile,
   stashPreflight: stashPreflightCmd,
   stashReplace: stashReplaceCmd,
+  stashConsistency: stashConsistencyCmd,
+  stashHeader: stashHeaderCmd,
   modScripts,
   runScript,
   listCharacters: listCharactersCmd,

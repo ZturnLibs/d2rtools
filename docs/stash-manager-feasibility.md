@@ -15,7 +15,7 @@
 
 ## 2. 格式机制（设计输入）
 
-- `.d2i` = **多个 64 字节 sector 顺序拼接，每页一个 sector**：`magic 0xAA55AA55 | hardcore 标志 | version | sharedGold | sectorSize | 44B 保留`，随后 `JM` 开头的物品位流。证据：[`dschu012/d2s` `src/d2/stash.ts`](https://github.com/dschu012/d2s/blob/master/src/d2/stash.ts)
+- `.d2i` = **N 个 sector 顺序拼接，每页一个 sector；每个 sector 自带一份 64 字节小头**：`magic 0xAA55AA55 | hardcore u32 | version u32 | sharedGold u32 | sectorSize u32 | 44B 保留`，随后该页 `JM` 开头的物品位流。两处易错点（2026-10 实机文件 + lib 源码双重验证）：**hardcore 语义反着存（0 = 硬核，lib `ReadUInt32()==0`）**；页数 = `floor(文件长度 / sectorSize)`（不是减一次 64B 头——每个 sector 都有头）。证据：[`dschu012/d2s` `src/d2/stash.ts`](https://github.com/dschu012/d2s/blob/master/src/d2/stash.ts)，实机交叉验证见 M10 `scripts/m10-probe.ts`（HC 文件头部读取与 lib 全解析逐字段一致）
 - **文件不编码总页数/格子布局**：页数由文件长度推出；格子布局由 mod 的 `bankexpansionlayouthd` 决定（[Nexus 教程](https://www.nexusmods.com/diablo2resurrected/videos/19)、[国内 mod 文档](https://www.wolai.com/teamind/weEykLZBvaHuZGc98WTF4r)）。→ 不同页数 d2i 可互换，游戏按文件内容解析
 - 物品编码与 .d2s 同源：version≥0x61 物品类型走 Huffman 变长码；位置字段 x/y 各 4 bit、**页索引 3 bit（0–7）**；其余同 LoD v96（[D2CE 格式文档](https://github.com/WalterCouto/D2CE/blob/main/d2s_File_Format.md)）
 - **"合并/拆分"的本质 = 搬物品坐标，物品体原样搬运**（d2-stash-organizer 正是此设计）

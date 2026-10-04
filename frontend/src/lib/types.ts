@@ -18,6 +18,9 @@ export type ListBackupsResult = KnownCommands["d2r:listBackups"]["result"];
 export type BackupMetaView = ListBackupsResult["backups"][number];
 export type StashPreflightView = KnownCommands["d2r:stashPreflight"]["result"];
 export type StashSlot = "soft" | "hard";
+// — M10 大仓库向导增强 —
+export type StashConsistencyView = KnownCommands["d2r:stashConsistency"]["result"];
+export type StashHeaderView = NonNullable<KnownCommands["d2r:stashHeader"]["result"]>;
 
 // — M3 作者脚本 / 存档转移 —
 export type ModScriptsResult = KnownCommands["d2r:modScripts"]["result"];

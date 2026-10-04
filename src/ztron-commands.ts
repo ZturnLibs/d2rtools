@@ -32,6 +32,8 @@ export type KnownCommands = {
     "d2r:stashPickFile": { args: { title?: string }; result: { path: string | null } }
     "d2r:stashPreflight": { args: { slot: string }; result: { slot: string; fileName: string; path: string; exists: boolean; size: number; mtime: number; gameRunning: boolean; } }
     "d2r:stashReplace": { args: { slot: string; sourcePath: string; note?: string }; result: { ok: boolean; backupId: string | null; replaced: boolean } }
+    "d2r:stashConsistency": { args: Record<string, never>; result: { soft: { slot: string; fileName: string; path: string; exists: boolean; size: number; mtime: number; header: { hardcore: boolean; version: number; sharedGold: number; sectorSize: number; pageCount: number | null; } | null; }; hard: { slot: string; fileName: string; path: string; exists: boolean; size: number; mtime: number; header: { hardcore: boolean; version: number; sharedGold: number; sectorSize: number; pageCount: number | null; } | null; }; warnings: { level: string; text: string }[]; } }
+    "d2r:stashHeader": { args: { path: string }; result: { hardcore: boolean; version: number; sharedGold: number; sectorSize: number; pageCount: number | null; } | null }
     "d2r:modScripts": { args: Record<string, never>; result: { mods: { mod: string; scripts: { name: string; path: string; size: number; mtime: number; sideEffects: { killsGame: boolean; launchesGame: boolean; pauses: boolean }; missingTargets: string[]; truncated: boolean; b64: string; }[]; }[]; } }
     "d2r:runScript": { args: { modName: string; fileName: string; ch: string }; result: { ok: boolean; code: number | null; timedOut: boolean } }
     "d2r:listCharacters": { args: { slot: string }; result: { slot: string; path: string; exists: boolean; characters: { name: string; d2sName: string; size: number; mtime: number; companions: { name: string; size: number }[]; }[]; } }
@@ -97,6 +99,8 @@ export async function invoke(
   if (cmd === "d2r:stashPickFile") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:stashPreflight") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:stashReplace") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:stashConsistency") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:stashHeader") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:modScripts") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:runScript") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:listCharacters") return rawInvoke(cmd, args as never, options);
