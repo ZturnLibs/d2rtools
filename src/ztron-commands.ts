@@ -50,6 +50,7 @@ export type KnownCommands = {
     "d2r:itemSources": { args: Record<string, never>; result: { groups: { name: string; slot: string; path: string; exists: boolean; stashes: { name: string; path: string; size: number; mtime: number; kind: string }[]; characters: { name: string; path: string; size: number; mtime: number }[]; }[]; } }
     "d2r:itemView": { args: { path: string }; result: | { kind: "stash"; version: string; hardcore: boolean; sharedGold: number; pageCount: number; pages: { index: number; name: string; items: { type: string; name: string; quality: string; category: string; where: string; page: number; x: number; y: number; qty: number | null; level: number | null; ethereal: boolean; socketed: boolean; sockets: number | null; identified: boolean; }[]; }[]; } | { kind: "character"; name: string; className: string | null; level: number | null; hardcore: boolean; expansion: boolean; groups: { where: string; items: { type: string; name: string; quality: string; category: string; where: string; page: number; x: number; y: number; qty: number | null; level: number | null; ethereal: boolean; socketed: boolean; sockets: number | null; identified: boolean; }[]; }[]; } | { /** 物品明细解不出（mod 自定义 SaveBits 位宽），头部身份已提取 */ kind: "character-partial"; name: string; className: string | null; level: number | null; hardcore: boolean; expansion: boolean; message: string; } | { kind: "error"; message: string } }
     "d2r:postExitCheck": { args: Record<string, never>; result: { running: boolean; watched: boolean; changed: boolean; lost: string[]; backupId: string | null; preLaunchBackupId: string | null; } }
+    "d2r:healthCheck": { args: Record<string, never>; result: { gameDir: string | null; durationMs: number; items: { id: string; group: "path" | "lang" | "version" | "av" | "saves" | "system"; title: string; status: "ok" | "info" | "warn" | "fail"; detail: string; fixSummary: string | null; fixSteps: string[]; }[]; } }
 };
 
 /** Type-safe invoke: cmd must be a known command, args/result inferred from its declaration. */
@@ -108,6 +109,7 @@ export async function invoke(
   if (cmd === "d2r:itemSources") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:itemView") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:postExitCheck") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:healthCheck") return rawInvoke(cmd, args as never, options);
   return rawInvoke(cmd, (args ?? {}) as never, options);
 }
 export default invoke;

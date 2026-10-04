@@ -44,3 +44,9 @@ export type ItemDtoView = Extract<
   { kind: "stash" }
 >["pages"][number]["items"][number];
 export type PostExitCheckResult = KnownCommands["d2r:postExitCheck"]["result"];
+
+// — M8 环境体检 —
+export type HealthCheckResult = KnownCommands["d2r:healthCheck"]["result"];
+export type HealthCheckItemView = HealthCheckResult["items"][number];
+export type HealthStatusView = HealthCheckItemView["status"];
+export type HealthGroupView = HealthCheckItemView["group"];

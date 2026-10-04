@@ -12,9 +12,10 @@ import { SavesPage } from "./tools/SavesPage";
 import { VaultPage } from "./tools/VaultPage";
 import { FilterPage } from "./tools/FilterPage/FilterPage";
 import { ItemPage } from "./tools/ItemPage";
+import { HealthPage } from "./tools/HealthPage";
 import { ExitGuardWatcher } from "./components/ExitGuardWatcher";
 
-type TabId = "mods" | "saves" | "vault" | "items" | "filter" | "settings";
+type TabId = "mods" | "saves" | "vault" | "items" | "filter" | "health" | "settings";
 
 const TABS: { id: TabId; label: string; hint: string }[] = [
   { id: "mods", label: "Mod 管理", hint: "整合包扫描 / 安装 / 启动" },
@@ -22,6 +23,7 @@ const TABS: { id: TabId; label: string; hint: string }[] = [
   { id: "vault", label: "仓库向导", hint: "共享仓库 .d2i 替换" },
   { id: "items", label: "物品清单", hint: "仓库/角色浏览与搜索" },
   { id: "filter", label: "过滤管理", hint: "掉落过滤预设" },
+  { id: "health", label: "环境体检", hint: "一键体检 / 修复指引" },
   { id: "settings", label: "设置", hint: "游戏目录 / 来源" },
 ];
 
@@ -51,7 +53,7 @@ export default function App() {
       <aside className="flex w-52 shrink-0 flex-col border-r border-neutral-800/80 bg-[#0d1017]">
         <div className="px-5 py-5">
           <h1 className="text-base font-bold tracking-wide">D2R 工具箱</h1>
-          <p className="mt-0.5 text-[11px] text-neutral-500">Horadric Kit · M7</p>
+          <p className="mt-0.5 text-[11px] text-neutral-500">Horadric Kit · M8</p>
         </div>
         <nav className="flex-1 space-y-1 px-3">
           {TABS.map((t) => (
@@ -97,7 +99,7 @@ export default function App() {
             </button>
           </div>
         )}
-        {/* 外壳永不整体滚动：六个页面全部自管布局（页头固定+页内滚动，滚动容器通栏到窗体右缘，滚动条贴边） */}
+        {/* 外壳永不整体滚动：七个页面全部自管布局（页头固定+页内滚动，滚动容器通栏到窗体右缘，滚动条贴边） */}
         <div className="min-h-0 flex-1 overflow-hidden">
           {tab === "items" && <ItemPage />}
           {tab === "saves" && <SavesPage config={cfg} refreshConfig={config.refresh} />}
@@ -110,6 +112,7 @@ export default function App() {
             />
           )}
           {tab === "vault" && <VaultPage goToSaves={() => setTab("saves")} />}
+          {tab === "health" && <HealthPage config={cfg} goToSettings={() => setTab("settings")} />}
           {tab === "settings" && (
             <SettingsPage
               config={cfg}

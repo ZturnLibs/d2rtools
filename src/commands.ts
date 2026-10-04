@@ -78,6 +78,7 @@ import {
   runModScript,
   type ScriptRunLine,
 } from "./services/authscripts.js";
+import { runHealthCheck } from "./services/health.js";
 
 // ---------------------------------------------------------------------------
 // DTO mapper (phantom types in defineCommand stay inline per codegen rules).
@@ -1071,6 +1072,34 @@ const postExitCheckCmd = defineCommand("d2r:postExitCheck", {
   },
 });
 
+// ---------------------------------------------------------------------------
+// 环境体检 (M8) — 只读检测游戏环境常见问题，输出修复指引，不改任何文件
+// ---------------------------------------------------------------------------
+
+const healthCheckCmd = defineCommand("d2r:healthCheck", {
+  args: {} as Record<string, never>,
+  result: {} as {
+    gameDir: string | null;
+    durationMs: number;
+    items: {
+      id: string;
+      group: "path" | "lang" | "version" | "av" | "saves" | "system";
+      title: string;
+      status: "ok" | "info" | "warn" | "fail";
+      detail: string;
+      fixSummary: string | null;
+      fixSteps: string[];
+    }[];
+  },
+  handler: async () => {
+    const config = await loadConfig();
+    return runHealthCheck({
+      gameDir: config.gameDir,
+      knownModNames: config.knownMods.map((m) => m.name),
+    });
+  },
+});
+
 /** All command defs, individually typed — register each via app.commandDef
  *  (a heterogeneous array would collapse the phantom types to a union). */
 export const commandDefs = {
@@ -1118,4 +1147,5 @@ export const commandDefs = {
   itemSources,
   itemView,
   postExitCheck: postExitCheckCmd,
+  healthCheck: healthCheckCmd,
 };

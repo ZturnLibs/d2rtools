@@ -74,3 +74,17 @@ export function parseOkMarker(stdout: string): string | null {
   }
   return null;
 }
+
+/** Collect every __D2R_OK__key=value line into a map (last one wins). */
+export function parseOkMap(stdout: string): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const line of stdout.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("__D2R_OK__")) continue;
+    const rest = trimmed.slice("__D2R_OK__".length);
+    const eq = rest.indexOf("=");
+    if (eq === -1) continue;
+    map[rest.slice(0, eq)] = rest.slice(eq + 1);
+  }
+  return map;
+}
