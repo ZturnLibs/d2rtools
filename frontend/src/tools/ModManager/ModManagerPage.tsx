@@ -130,18 +130,21 @@ export function ModManagerPage(props: {
 
   if (!config.gameDir) {
     return (
-      <div className="mx-auto mt-16 max-w-md text-center">
-        <p className="text-sm text-neutral-400">先设置游戏目录，才能安装和启动 MOD。</p>
-        <button className={btnGhost + " mt-3"} onClick={props.goToSettings}>
-          去设置 →
-        </button>
+      <div className="h-full overflow-y-auto px-6 pt-6">
+        <div className="mx-auto mt-16 max-w-md text-center">
+          <p className="text-sm text-neutral-400">先设置游戏目录，才能安装和启动 MOD。</p>
+          <button className={btnGhost + " mt-3"} onClick={props.goToSettings}>
+            去设置 →
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    /* 页头固定，下方内容整体内滚；滚动容器通栏到窗体右缘，滚动条贴边 */
+    <div className="flex h-full min-w-0 flex-col space-y-4">
+      <div className="flex shrink-0 items-center justify-between px-6 pt-6">
         <div>
           <h2 className="text-base font-semibold">Mod 管理</h2>
           <p className="text-xs text-neutral-500">
@@ -153,7 +156,9 @@ export function ModManagerPage(props: {
         </button>
       </div>
 
-      <SourceList sources={config.sources} onChanged={props.refreshConfig} onWarnings={setScanWarnings} />
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+        <div className="space-y-4">
+        <SourceList sources={config.sources} onChanged={props.refreshConfig} onWarnings={setScanWarnings} />
 
       {scanWarnings.length > 0 && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-300">
@@ -290,6 +295,8 @@ export function ModManagerPage(props: {
           onClose={() => setScriptsTarget(null)}
         />
       )}
+        </div>
+      </div>
     </div>
   );
 }

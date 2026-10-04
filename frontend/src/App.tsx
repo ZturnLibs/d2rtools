@@ -97,30 +97,25 @@ export default function App() {
             </button>
           </div>
         )}
-        {/* 外壳永不整体滚动：物品清单/存档管家/过滤管理自管布局（页头固定+内滚），其余页面在页内滚动容器里走文档流。
-            内滚容器通栏到窗体右缘，滚动条贴边；各页自己负责补白。 */}
+        {/* 外壳永不整体滚动：六个页面全部自管布局（页头固定+页内滚动，滚动容器通栏到窗体右缘，滚动条贴边） */}
         <div className="min-h-0 flex-1 overflow-hidden">
           {tab === "items" && <ItemPage />}
           {tab === "saves" && <SavesPage config={cfg} refreshConfig={config.refresh} />}
           {tab === "filter" && <FilterPage config={cfg} goToSettings={() => setTab("settings")} />}
-          {tab !== "items" && tab !== "saves" && tab !== "filter" && (
-            <div className="h-full overflow-y-auto p-6">
-              {tab === "mods" && (
-                <ModManagerPage
-                  config={cfg}
-                  refreshConfig={config.refresh}
-                  goToSettings={() => setTab("settings")}
-                />
-              )}
-              {tab === "vault" && <VaultPage goToSaves={() => setTab("saves")} />}
-              {tab === "settings" && (
-                <SettingsPage
-                  config={cfg}
-                  validation={validation}
-                  refreshConfig={config.refresh}
-                />
-              )}
-            </div>
+          {tab === "mods" && (
+            <ModManagerPage
+              config={cfg}
+              refreshConfig={config.refresh}
+              goToSettings={() => setTab("settings")}
+            />
+          )}
+          {tab === "vault" && <VaultPage goToSaves={() => setTab("saves")} />}
+          {tab === "settings" && (
+            <SettingsPage
+              config={cfg}
+              validation={validation}
+              refreshConfig={config.refresh}
+            />
           )}
         </div>
       </main>

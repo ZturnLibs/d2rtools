@@ -75,13 +75,19 @@ export function VaultPage(props: { goToSaves: () => void }) {
   const gameBlocked = preflight?.gameRunning === true;
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <header>
-        <h2 className="text-lg font-semibold">大仓库向导</h2>
-        <p className="mt-1 text-xs text-neutral-500">
-          用整合包作者的 .d2i 仓库文件替换当前共享仓库 · 替换前自动备份当前主存档，可回滚
-        </p>
+    /* 页头固定，下方内容整体内滚；滚动容器通栏到窗体右缘，滚动条贴边 */
+    <div className="flex h-full min-w-0 flex-col">
+      <header className="shrink-0 px-6 pt-6">
+        <div className="mx-auto max-w-2xl">
+          <h2 className="text-lg font-semibold">大仓库向导</h2>
+          <p className="mt-1 text-xs text-neutral-500">
+            用整合包作者的 .d2i 仓库文件替换当前共享仓库 · 替换前自动备份当前主存档，可回滚
+          </p>
+        </div>
       </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+        <div className="mx-auto max-w-2xl">
 
       {/* step indicator */}
       <ol className="mt-5 flex items-center gap-2 text-xs">
@@ -259,6 +265,8 @@ export function VaultPage(props: { goToSaves: () => void }) {
           </div>
         </section>
       )}
+        </div>
+      </div>
     </div>
   );
 }

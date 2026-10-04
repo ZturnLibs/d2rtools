@@ -57,7 +57,9 @@ export function SettingsPage(props: {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    /* 无独立页头：整页内滚；滚动容器通栏到窗体右缘，滚动条贴边 */
+    <div className="h-full min-w-0 overflow-y-auto px-6 pb-6 pt-6">
+      <div className="mx-auto max-w-2xl space-y-6">
       <section>
         <h2 className="mb-1 text-base font-semibold">游戏目录</h2>
         <p className="mb-3 text-xs text-neutral-500">
@@ -118,6 +120,7 @@ export function SettingsPage(props: {
         </p>
         <p className="mt-1">存档根目录：%UserProfile%\Saved Games\Diablo II Resurrected</p>
       </section>
+      </div>
     </div>
   );
 }
