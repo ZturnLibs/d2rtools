@@ -6,7 +6,7 @@ import { invoke as rawInvoke } from "@zturnlibs/ztron-api";
 import type { InvokeOptions } from "@zturnlibs/ztron-api";
 
 export type KnownCommands = {
-    "d2r:getConfig": { args: Record<string, never>; result: { config: { version: number; gameDir: string | null; sources: { id: string; path: string; label: string; addedAt: number }[]; knownMods: { key: string; name: string; displayName: string | null; savepath: string; sourceId: string; sourcePath: string; relPath: string; variant: string; parseWarning: string | null; readmePath: string | null; }[]; profiles: { id: string; name: string; modName: string; extraArgs: string[]; note: string; createdAt: number }[]; installed: Record<string, { mode: string; installedAt: number; sourcePath: string }>; autoBackup: boolean; backupKeep: number; backupZip: boolean; }; validation: { exists: boolean; hasD2R: boolean; hasModsDir: boolean } | null; } }
+    "d2r:getConfig": { args: Record<string, never>; result: { config: { version: number; gameDir: string | null; sources: { id: string; path: string; label: string; addedAt: number }[]; knownMods: { key: string; name: string; displayName: string | null; savepath: string; sourceId: string; sourcePath: string; relPath: string; variant: string; parseWarning: string | null; readmePath: string | null; }[]; profiles: { id: string; name: string; modName: string; extraArgs: string[]; note: string; createdAt: number }[]; installed: Record<string, { mode: string; installedAt: number; sourcePath: string }>; autoBackup: boolean; backupKeep: number; backupZip: boolean; updateState: Record<string, { supported: boolean; localVersion: string | null; remoteVersion: string | null; hasUpdate: boolean; downloadUrl: string | null; configUrl: string | null; changelog: string | null; lastChecked: number; error: string | null; }>; }; validation: { exists: boolean; hasD2R: boolean; hasModsDir: boolean } | null; } }
     "d2r:setGameDir": { args: { gameDir: string }; result: { ok: boolean; validation: { exists: boolean; hasD2R: boolean; hasModsDir: boolean } } }
     "d2r:pickFolder": { args: { title?: string }; result: { path: string | null } }
     "d2r:addSource": { args: { path: string; label?: string }; result: { source: { id: string; path: string; label: string; addedAt: number }; } }
@@ -51,6 +51,12 @@ export type KnownCommands = {
     "d2r:itemView": { args: { path: string }; result: | { kind: "stash"; version: string; hardcore: boolean; sharedGold: number; pageCount: number; pages: { index: number; name: string; items: { type: string; name: string; quality: string; category: string; where: string; page: number; x: number; y: number; qty: number | null; level: number | null; ethereal: boolean; socketed: boolean; sockets: number | null; identified: boolean; }[]; }[]; } | { kind: "character"; name: string; className: string | null; level: number | null; hardcore: boolean; expansion: boolean; groups: { where: string; items: { type: string; name: string; quality: string; category: string; where: string; page: number; x: number; y: number; qty: number | null; level: number | null; ethereal: boolean; socketed: boolean; sockets: number | null; identified: boolean; }[]; }[]; } | { /** 物品明细解不出（mod 自定义 SaveBits 位宽），头部身份已提取 */ kind: "character-partial"; name: string; className: string | null; level: number | null; hardcore: boolean; expansion: boolean; message: string; } | { kind: "error"; message: string } }
     "d2r:postExitCheck": { args: Record<string, never>; result: { running: boolean; watched: boolean; changed: boolean; lost: string[]; backupId: string | null; preLaunchBackupId: string | null; } }
     "d2r:healthCheck": { args: Record<string, never>; result: { gameDir: string | null; durationMs: number; items: { id: string; group: "path" | "lang" | "version" | "av" | "saves" | "system"; title: string; status: "ok" | "info" | "warn" | "fail"; detail: string; fixSummary: string | null; fixSteps: string[]; }[]; } }
+    "d2r:updateCheck": { args: { name?: string; force?: boolean }; result: { results: Record<string, { supported: boolean; localVersion: string | null; remoteVersion: string | null; hasUpdate: boolean; downloadUrl: string | null; configUrl: string | null; changelog: string | null; lastChecked: number; error: string | null; }>; } }
+    "d2r:updateApply": { args: { name: string; mode: string; overwrite: boolean; ch: string }; result: { ok: boolean; files: number; bytes: number; mode: string; errors: string[] } }
+    "d2r:modIndexList": { args: { refresh?: boolean }; result: { entries: { id: string; name: string; author: string; category: string; version: string; language?: string; homepage: string | null; downloadUrl: string | null; configUrl: string | null; description: string; notes?: string; }[]; fetchedAt: number; via: string; bundledFallback: boolean; errorsText: string | null; } }
+    "d2r:zipStagePick": { args: Record<string, never>; result: { stage: { stageId: string; candidates: { name: string; displayName: string | null; savepath: string; variant: string; sourcePath: string; }[]; files: number; bytes: number; } | null; } }
+    "d2r:zipStageUrl": { args: { url: string; ch: string }; result: { stage: { stageId: string; candidates: { name: string; displayName: string | null; savepath: string; variant: string; sourcePath: string; }[]; files: number; bytes: number; } | null; } }
+    "d2r:zipStageInstall": { args: { stageId: string; modName: string; mode: string; overwrite: boolean; source?: string; ch: string }; result: { ok: boolean; files: number; bytes: number; mode: string; errors: string[] } }
 };
 
 /** Type-safe invoke: cmd must be a known command, args/result inferred from its declaration. */
@@ -110,6 +116,12 @@ export async function invoke(
   if (cmd === "d2r:itemView") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:postExitCheck") return rawInvoke(cmd, args as never, options);
   if (cmd === "d2r:healthCheck") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:updateCheck") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:updateApply") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:modIndexList") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:zipStagePick") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:zipStageUrl") return rawInvoke(cmd, args as never, options);
+  if (cmd === "d2r:zipStageInstall") return rawInvoke(cmd, args as never, options);
   return rawInvoke(cmd, (args ?? {}) as never, options);
 }
 export default invoke;

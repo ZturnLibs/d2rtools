@@ -13,12 +13,14 @@ import { VaultPage } from "./tools/VaultPage";
 import { FilterPage } from "./tools/FilterPage/FilterPage";
 import { ItemPage } from "./tools/ItemPage";
 import { HealthPage } from "./tools/HealthPage";
+import { StorePage } from "./tools/StorePage/StorePage";
 import { ExitGuardWatcher } from "./components/ExitGuardWatcher";
 
-type TabId = "mods" | "saves" | "vault" | "items" | "filter" | "health" | "settings";
+type TabId = "mods" | "store" | "saves" | "vault" | "items" | "filter" | "health" | "settings";
 
 const TABS: { id: TabId; label: string; hint: string }[] = [
   { id: "mods", label: "Mod 管理", hint: "整合包扫描 / 安装 / 启动" },
+  { id: "store", label: "Mod 库", hint: "在线清单 / zip 导入 / 更新" },
   { id: "saves", label: "存档管家", hint: "快照备份 / 一键还原" },
   { id: "vault", label: "仓库向导", hint: "共享仓库 .d2i 替换" },
   { id: "items", label: "物品清单", hint: "仓库/角色浏览与搜索" },
@@ -53,7 +55,7 @@ export default function App() {
       <aside className="flex w-52 shrink-0 flex-col border-r border-neutral-800/80 bg-[#0d1017]">
         <div className="px-5 py-5">
           <h1 className="text-base font-bold tracking-wide">D2R 工具箱</h1>
-          <p className="mt-0.5 text-[11px] text-neutral-500">Horadric Kit · M8</p>
+          <p className="mt-0.5 text-[11px] text-neutral-500">Horadric Kit · M9</p>
         </div>
         <nav className="flex-1 space-y-1 px-3">
           {TABS.map((t) => (
@@ -111,6 +113,7 @@ export default function App() {
               goToSettings={() => setTab("settings")}
             />
           )}
+          {tab === "store" && <StorePage config={cfg} goToSettings={() => setTab("settings")} />}
           {tab === "vault" && <VaultPage goToSaves={() => setTab("saves")} />}
           {tab === "health" && <HealthPage config={cfg} goToSettings={() => setTab("settings")} />}
           {tab === "settings" && (

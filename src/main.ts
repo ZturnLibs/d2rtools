@@ -96,6 +96,12 @@ new AppBuilder(runtime, "com.zyj.d2rbox")
     app.commandDef(commandDefs.itemView);
     app.commandDef(commandDefs.postExitCheck);
     app.commandDef(commandDefs.healthCheck);
+    app.commandDef(commandDefs.updateCheck);
+    app.commandDef(commandDefs.updateApply);
+    app.commandDef(commandDefs.modIndexList);
+    app.commandDef(commandDefs.zipStagePick);
+    app.commandDef(commandDefs.zipStageUrl);
+    app.commandDef(commandDefs.zipStageInstall);
     console.log(`[d2rbox] registered ${Object.keys(commandDefs).length} d2r:* commands`);
   })
   .build()

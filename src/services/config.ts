@@ -61,6 +61,16 @@ export interface LaunchWatch {
   backupId: string | null;
 }
 
+/** M9：单个已装 mod 的最近一次更新检查结果（含节流时间戳）。 */
+export type ModUpdateState = import("./modupdate.js").UpdateStatus;
+
+/** M9：在线 mod 清单缓存（上次成功拉取的整份文档）。 */
+export interface ModIndexCache {
+  entries: import("./modindex.js").ModIndexEntry[];
+  fetchedAt: number;
+  via: string;
+}
+
 export interface AppConfig {
   version: 1;
   gameDir: string | null;
@@ -76,6 +86,10 @@ export interface AppConfig {
   backupZip: boolean;
   /** Non-null while a tool-launched game session is being watched (M7). */
   launchWatch: LaunchWatch | null;
+  /** M9：mod 名 → 最近更新检查结果（lastChecked 节流的存储层）。 */
+  updateState: Record<string, ModUpdateState>;
+  /** M9：在线 mod 库清单缓存。 */
+  modIndex: ModIndexCache | null;
 }
 
 export function defaultConfig(): AppConfig {
@@ -90,6 +104,8 @@ export function defaultConfig(): AppConfig {
     backupKeep: 10,
     backupZip: true,
     launchWatch: null,
+    updateState: {},
+    modIndex: null,
   };
 }
 

@@ -46,6 +46,29 @@ async function readJsonFile(path: string): Promise<Record<string, unknown> | nul
 }
 
 /**
+ * Raw modinfo.json object for mod dir `dir`, same two layouts readModInfo
+ * accepts. Null when neither exists. Exposed for the update checker (M9),
+ * which reads author-added fields beyond name/savepath.
+ */
+export async function readModInfoRaw(
+  dir: string,
+  dirName: string,
+): Promise<Record<string, unknown> | null> {
+  const parsed = await readJsonFile(joinPath(dir, "modinfo.json"));
+  if (parsed) return parsed;
+  const mpqPath = joinPath(dir, `${dirName}.mpq`);
+  try {
+    const st = await tjs.stat(mpqPath);
+    if (st.isDirectory) {
+      return await readJsonFile(joinPath(mpqPath, "modinfo.json"));
+    }
+  } catch {
+    /* no .mpq child at all */
+  }
+  return null;
+}
+
+/**
  * Detection order for mod dir `dir` (folder name `dirName`):
  *   1. <dir>\modinfo.json            (standard layout, VIPer_cs)
  *   2. <dir>\<dirName>.mpq\modinfo.json  (mpq-as-folder, EJ)
@@ -53,18 +76,7 @@ async function readJsonFile(path: string): Promise<Record<string, unknown> | nul
  * Returns null when none apply (not a mod dir).
  */
 export async function readModInfo(dir: string, dirName: string): Promise<ModInfoResult | null> {
-  let parsed = await readJsonFile(joinPath(dir, "modinfo.json"));
-  if (!parsed) {
-    const mpqPath = joinPath(dir, `${dirName}.mpq`);
-    try {
-      const st = await tjs.stat(mpqPath);
-      if (st.isDirectory) {
-        parsed = await readJsonFile(joinPath(mpqPath, "modinfo.json"));
-      }
-    } catch {
-      /* no .mpq child at all — fall through */
-    }
-  }
+  const parsed = await readModInfoRaw(dir, dirName);
 
   if (!parsed) {
     // modinfo-less dir: only treat as a mod if a same-named .mpq exists.

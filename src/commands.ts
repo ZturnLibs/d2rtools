@@ -16,11 +16,29 @@ import {
   ensureModsDir,
   saveRoot,
   modSaveDir,
+  modsDir,
+  modDir,
+  joinPath,
   pathExists,
   isValidModName,
 } from "./services/paths.js";
 import { scanSource } from "./services/scan.js";
-import { findReadme } from "./services/modinfo.js";
+import { findReadme, readModInfo } from "./services/modinfo.js";
+import {
+  checkModUpdate,
+  shouldAutoCheck,
+  type UpdateStatus,
+} from "./services/modupdate.js";
+import {
+  stageFromUrl,
+  stageFromZipFile,
+  scanStageDir,
+  getStage,
+  dropStage,
+  type StageCandidate,
+  type StageOutcome,
+} from "./services/zipinstall.js";
+import { fetchModIndex } from "./services/modindex.js";
 import {
   pickFolder,
   pickFile,
@@ -167,6 +185,17 @@ const getConfig = defineCommand("d2r:getConfig", {
       autoBackup: boolean;
       backupKeep: number;
       backupZip: boolean;
+      updateState: Record<string, {
+        supported: boolean;
+        localVersion: string | null;
+        remoteVersion: string | null;
+        hasUpdate: boolean;
+        downloadUrl: string | null;
+        configUrl: string | null;
+        changelog: string | null;
+        lastChecked: number;
+        error: string | null;
+      }>;
     };
     validation: { exists: boolean; hasD2R: boolean; hasModsDir: boolean } | null;
   },
@@ -183,6 +212,7 @@ const getConfig = defineCommand("d2r:getConfig", {
         autoBackup: config.autoBackup,
         backupKeep: config.backupKeep,
         backupZip: config.backupZip,
+        updateState: config.updateState,
       },
       validation: config.gameDir ? await validateGameDir(config.gameDir) : null,
     };
@@ -312,7 +342,9 @@ const listMods = defineCommand("d2r:listMods", {
   },
   handler: async () => {
     const config = await loadConfig();
-    if (!config.gameDir) return { mods: config.knownMods.map(toModDto), installed: {}, suggestedArgs: {} };
+    if (!config.gameDir) {
+      return { mods: config.knownMods.map(toModDto), installed: {}, suggestedArgs: {} };
+    }
     const installed: Record<string, boolean> = {};
     const suggestedArgs: Record<string, string[]> = {};
     await Promise.all(
@@ -322,7 +354,37 @@ const listMods = defineCommand("d2r:listMods", {
           m.savepath.trim() === "../" ? ["-mod", m.name] : ["-mod", m.name, "-txt"];
       }),
     );
-    return { mods: config.knownMods.map(toModDto), installed, suggestedArgs };
+    // M9：mods\ 下不在任何已登记来源里的 mod（zip 导入 / 手动拷贝）合成为
+    // 「外部导入」卡片——身份读安装副本的 modinfo，更新检查照常工作。
+    const knownNames = new Set(config.knownMods.map((m) => m.name.toLowerCase()));
+    const externals = (await listInstalledModDirs(config.gameDir)).filter(
+      (d) => !knownNames.has(d.name.toLowerCase()),
+    );
+    const externalDtos = await Promise.all(
+      externals.map(async (d) => {
+        const info = await readModInfo(d.dir, d.name);
+        installed[d.name] = true;
+        suggestedArgs[d.name] =
+          info && info.savepath.trim() === "../" ? ["-mod", d.name] : ["-mod", d.name, "-txt"];
+        return {
+          key: `ext:${d.name}`,
+          name: d.name,
+          displayName: info && info.name !== d.name ? info.name : null,
+          savepath: info?.savepath ?? d.name,
+          sourceId: "external",
+          sourcePath: d.dir,
+          relPath: "",
+          variant: "外部导入",
+          parseWarning: null,
+          readmePath: null,
+        };
+      }),
+    );
+    return {
+      mods: [...config.knownMods.map(toModDto), ...externalDtos],
+      installed,
+      suggestedArgs,
+    };
   },
 });
 
@@ -1100,6 +1162,365 @@ const healthCheckCmd = defineCommand("d2r:healthCheck", {
   },
 });
 
+// ---------------------------------------------------------------------------
+// Mod 更新 + 在线 mod 库 (M9) — D2RLaunch 约定检测 + zip 暂存安装管线
+// ---------------------------------------------------------------------------
+
+/** Every mod physically present under <game>\mods\ — knownMods or not (a
+ *  zip-installed / hand-copied mod still shows up, still gets update checks
+ *  against its own modinfo). */
+async function listInstalledModDirs(gameDir: string): Promise<{ name: string; dir: string }[]> {
+  const out: { name: string; dir: string }[] = [];
+  const root = modsDir(gameDir);
+  if (!(await pathExists(root))) return out;
+  for await (const e of await tjs.readDir(root)) {
+    if (e.isDirectory && isValidModName(e.name)) {
+      out.push({ name: e.name, dir: joinPath(root, e.name) });
+    }
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Match a staged candidate by mod name; null → caller reports. */
+function pickCandidate(candidates: StageCandidate[], wantName: string | null): StageCandidate | null {
+  if (wantName) return candidates.find((c) => c.name === wantName) ?? null;
+  return candidates.length === 1 ? candidates[0]! : null;
+}
+
+/** Stage outcomes cross IPC as plain inline DTOs (codegen keeps phantom
+ *  types verbatim — named aliases would leak into the generated file). */
+function toStageDto(outcome: StageOutcome): {
+  stageId: string;
+  candidates: {
+    name: string;
+    displayName: string | null;
+    savepath: string;
+    variant: string;
+    sourcePath: string;
+  }[];
+  files: number;
+  bytes: number;
+} {
+  return {
+    stageId: outcome.stageId,
+    candidates: outcome.candidates,
+    files: outcome.files,
+    bytes: outcome.bytes,
+  };
+}
+
+/**
+ * Shared tail of every zip install: preflight snapshot → installMod from
+ * the staged source → installed-record update. The stage dir is always
+ * dropped (success or failure). `recordSource` replaces the ephemeral stage
+ * path in the installed record (url / picked zip path survive it).
+ */
+async function installStagedCandidate(params: {
+  staged: StageOutcome;
+  wantName: string;
+  gameDir: string;
+  mode: "copy" | "hardlink";
+  overwrite: boolean;
+  recordSource: string;
+  note: string;
+  onProgress: (p: InstallProgress) => void;
+}): Promise<{ ok: boolean; files: number; bytes: number; mode: string; errors: string[] }> {
+  const { staged, wantName, gameDir, mode, overwrite, recordSource, note, onProgress } = params;
+  try {
+    const candidate = pickCandidate(staged.candidates, wantName);
+    if (!candidate) {
+      throw new Error(
+        `压缩包中没有 ${wantName}（可用：${staged.candidates.map((c) => c.name).join("、")}）`,
+      );
+    }
+    const config = await loadConfig();
+    await preInstallSnapshot(config, candidate.name, note);
+    const outcome = await installMod({
+      gameDir,
+      sourcePath: candidate.sourcePath,
+      modName: candidate.name,
+      mode,
+      overwrite,
+      onProgress,
+    });
+    await updateConfig((cfg) => ({
+      ...cfg,
+      installed: {
+        ...cfg.installed,
+        [candidate.name]: { mode: outcome.mode, installedAt: Date.now(), sourcePath: recordSource },
+      },
+    }));
+    onProgress({ type: "done", ...outcome });
+    return outcome;
+  } finally {
+    await dropStage(staged.stageId);
+  }
+}
+
+const updateCheckCmd = defineCommand("d2r:updateCheck", {
+  args: {} as { name?: string; force?: boolean },
+  result: {} as {
+    results: Record<string, {
+      supported: boolean;
+      localVersion: string | null;
+      remoteVersion: string | null;
+      hasUpdate: boolean;
+      downloadUrl: string | null;
+      configUrl: string | null;
+      changelog: string | null;
+      lastChecked: number;
+      error: string | null;
+    }>;
+  },
+  handler: async (args) => {
+    const config = await loadConfig();
+    if (!config.gameDir) throw new Error("请先在设置中配置游戏目录");
+    const installed = await listInstalledModDirs(config.gameDir);
+    if (!args.name) {
+      if (installed.length === 0) return { results: {} };
+    } else if (!installed.some((m) => m.name === args.name)) {
+      throw new Error(`MOD 未安装：${args.name}`);
+    }
+    const force = args.force === true;
+    const now = Date.now();
+    const results: Record<string, UpdateStatus> = {};
+    for (const target of installed) {
+      if (args.name && target.name !== args.name) continue;
+      const cached = config.updateState[target.name];
+      // 不强制时：6h 内的缓存直接复用；确认不参与更新约定的 mod 不再打网络。
+      if (!force && cached && (cached.supported === false || !shouldAutoCheck(cached.lastChecked, now))) {
+        results[target.name] = cached;
+        continue;
+      }
+      let status: UpdateStatus;
+      try {
+        status = await checkModUpdate({ modDir: target.dir, dirName: target.name }, now);
+      } catch (err) {
+        status = {
+          supported: true,
+          localVersion: cached?.localVersion ?? null,
+          remoteVersion: null,
+          hasUpdate: false,
+          downloadUrl: null,
+          configUrl: cached?.configUrl ?? null,
+          changelog: null,
+          lastChecked: now,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+      results[target.name] = status;
+    }
+    await updateConfig((cfg) => ({
+      ...cfg,
+      updateState: { ...cfg.updateState, ...results },
+    }));
+    return { results };
+  },
+});
+
+const updateApplyCmd = defineCommand("d2r:updateApply", {
+  args: {} as { name: string; mode: string; overwrite: boolean; ch: string },
+  result: {} as { ok: boolean; files: number; bytes: number; mode: string; errors: string[] },
+  handler: async (args, ctx) => {
+    const channel = args.ch as unknown as { kind: "channel"; id: number };
+    const handle = ctx.getChannel(channel.id);
+    try {
+      const config = await loadConfig();
+      if (!config.gameDir) throw new Error("请先在设置中配置游戏目录");
+      const state = config.updateState[args.name];
+      if (!state?.supported) throw new Error(`${args.name} 未接入更新约定（modinfo 缺少更新字段）`);
+      if (!state.downloadUrl) {
+        throw new Error("没有可用的更新下载地址——请先「检查更新」获取远端配置");
+      }
+      const staged = await stageFromUrl(state.downloadUrl, {
+        onDownloadProgress: (p) => handle?.send({ type: "download", done: p.done, total: p.total }),
+      });
+      const outcome = await installStagedCandidate({
+        staged,
+        wantName: args.name,
+        gameDir: config.gameDir,
+        mode: args.mode === "hardlink" ? "hardlink" : "copy",
+        overwrite: args.overwrite,
+        recordSource: state.downloadUrl,
+        note: `升级 ${args.name} 前自动备份`,
+        onProgress: (p) => handle?.send(p),
+      });
+      await updateConfig((cfg) => {
+        const prev = cfg.updateState[args.name];
+        return {
+          ...cfg,
+          updateState: {
+            ...cfg.updateState,
+            [args.name]: {
+              ...(prev ?? {
+                supported: true,
+                localVersion: null,
+                remoteVersion: null,
+                hasUpdate: false,
+                downloadUrl: null,
+                configUrl: null,
+                changelog: null,
+                lastChecked: Date.now(),
+                error: null,
+              }),
+              localVersion: prev?.remoteVersion ?? prev?.localVersion ?? null,
+              hasUpdate: false,
+              lastChecked: Date.now(),
+              error: null,
+            },
+          },
+        };
+      });
+      return outcome;
+    } finally {
+      handle?.end();
+    }
+  },
+});
+
+const modIndexListCmd = defineCommand("d2r:modIndexList", {
+  args: {} as { refresh?: boolean },
+  result: {} as {
+    entries: {
+      id: string;
+      name: string;
+      author: string;
+      category: string;
+      version: string;
+      language?: string;
+      homepage: string | null;
+      downloadUrl: string | null;
+      configUrl: string | null;
+      description: string;
+      notes?: string;
+    }[];
+    fetchedAt: number;
+    via: string;
+    bundledFallback: boolean;
+    errorsText: string | null;
+  },
+  handler: async (args) => {
+    const config = await loadConfig();
+    const cached = config.modIndex;
+    if (!args.refresh && cached && Date.now() - cached.fetchedAt < 60 * 60 * 1000) {
+      return {
+        entries: cached.entries,
+        fetchedAt: cached.fetchedAt,
+        via: cached.via,
+        bundledFallback: cached.via === "bundled",
+        errorsText: null,
+      };
+    }
+    const fetched = await fetchModIndex();
+    const fetchedAt = Date.now();
+    await updateConfig((cfg) => ({
+      ...cfg,
+      modIndex: { entries: fetched.doc.entries, fetchedAt, via: fetched.via },
+    }));
+    return {
+      entries: fetched.doc.entries,
+      fetchedAt,
+      via: fetched.via,
+      bundledFallback: fetched.bundledFallback,
+      errorsText: fetched.errorsText,
+    };
+  },
+});
+
+const zipStagePickCmd = defineCommand("d2r:zipStagePick", {
+  args: {} as Record<string, never>,
+  result: {} as {
+    stage: {
+      stageId: string;
+      candidates: {
+        name: string;
+        displayName: string | null;
+        savepath: string;
+        variant: string;
+        sourcePath: string;
+      }[];
+      files: number;
+      bytes: number;
+    } | null;
+  },
+  handler: async () => {
+    const path = await pickFile({
+      title: "选择 mod 压缩包",
+      filterName: "压缩包",
+      pattern: "*.zip",
+    });
+    if (!path) return { stage: null };
+    const outcome = await stageFromZipFile(path);
+    return { stage: toStageDto(outcome) };
+  },
+});
+
+const zipStageUrlCmd = defineCommand("d2r:zipStageUrl", {
+  args: {} as { url: string; ch: string },
+  result: {} as {
+    stage: {
+      stageId: string;
+      candidates: {
+        name: string;
+        displayName: string | null;
+        savepath: string;
+        variant: string;
+        sourcePath: string;
+      }[];
+      files: number;
+      bytes: number;
+    } | null;
+  },
+  handler: async (args, ctx) => {
+    const channel = args.ch as unknown as { kind: "channel"; id: number };
+    const handle = ctx.getChannel(channel.id);
+    try {
+      const url = args.url.trim();
+      if (!/^https?:\/\//i.test(url)) throw new Error(`不是有效的 http(s) 下载地址：${url}`);
+      const outcome = await stageFromUrl(url, {
+        onDownloadProgress: (p) => handle?.send({ type: "download", done: p.done, total: p.total }),
+      });
+      // useChannelStream drops the resolve value — relay the staged result as
+      // a channel message so the dialog can move to variant pick.
+      handle?.send({ type: "staged", stage: toStageDto(outcome) });
+      return { stage: toStageDto(outcome) };
+    } finally {
+      handle?.end();
+    }
+  },
+});
+
+const zipStageInstallCmd = defineCommand("d2r:zipStageInstall", {
+  args: {} as { stageId: string; modName: string; mode: string; overwrite: boolean; source?: string; ch: string },
+  result: {} as { ok: boolean; files: number; bytes: number; mode: string; errors: string[] },
+  handler: async (args, ctx) => {
+    const channel = args.ch as unknown as { kind: "channel"; id: number };
+    const handle = ctx.getChannel(channel.id);
+    try {
+      const stagedStage = getStage(args.stageId);
+      if (!stagedStage) {
+        throw new Error("暂存任务已失效（后端已重启或已完成安装），请重新下载或导入");
+      }
+      const config = await loadConfig();
+      if (!config.gameDir) throw new Error("请先在设置中配置游戏目录");
+      const { candidates } = await scanStageDir(stagedStage.dir);
+      const outcome = await installStagedCandidate({
+        staged: { stageId: args.stageId, dir: stagedStage.dir, candidates, files: 0, bytes: 0 },
+        wantName: args.modName,
+        gameDir: config.gameDir,
+        mode: args.mode === "hardlink" ? "hardlink" : "copy",
+        overwrite: args.overwrite,
+        recordSource: args.source ?? "",
+        note: `安装 ${args.modName}（zip 导入）前自动备份`,
+        onProgress: (p) => handle?.send(p),
+      });
+      return outcome;
+    } finally {
+      handle?.end();
+    }
+  },
+});
+
 /** All command defs, individually typed — register each via app.commandDef
  *  (a heterogeneous array would collapse the phantom types to a union). */
 export const commandDefs = {
@@ -1148,4 +1569,10 @@ export const commandDefs = {
   itemView,
   postExitCheck: postExitCheckCmd,
   healthCheck: healthCheckCmd,
+  updateCheck: updateCheckCmd,
+  updateApply: updateApplyCmd,
+  modIndexList: modIndexListCmd,
+  zipStagePick: zipStagePickCmd,
+  zipStageUrl: zipStageUrlCmd,
+  zipStageInstall: zipStageInstallCmd,
 };

@@ -11,6 +11,7 @@ import type { AppConfigView, ModInfo, ProfileView, ScriptInfoView } from "../../
 import { SourceList } from "./SourceList";
 import { ModCard } from "./ModCard";
 import { InstallDialog } from "./InstallDialog";
+import { UpdateDialog } from "./UpdateDialog";
 import { ScriptsDialog } from "./ScriptsDialog";
 import { ProfileBar } from "./ProfileBar";
 import { ParamHelp } from "./ParamHelp";
@@ -39,6 +40,8 @@ export function ModManagerPage(props: {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [scanWarnings, setScanWarnings] = useState<string[]>([]);
+  const [checkingAll, setCheckingAll] = useState(false);
+  const [updateTarget, setUpdateTarget] = useState<ModInfo | null>(null);
 
   // Re-pull install state whenever knownMods change (after scan/remove).
   useEffect(() => {
@@ -128,6 +131,28 @@ export function ModManagerPage(props: {
     }
   }
 
+  /** M9 更新检查：全量（force=false，后端 6h 节流）或单 mod（force=true）。 */
+  async function checkUpdates(name?: string) {
+    setError("");
+    setNotice("");
+    if (name === undefined) setCheckingAll(true);
+    try {
+      const res = await invoke("d2r:updateCheck", name ? { name, force: true } : {});
+      const n = Object.keys(res.results).length;
+      const updates = Object.values(res.results).filter((s) => s.hasUpdate).length;
+      props.refreshConfig();
+      if (updates > 0) {
+        setNotice(`检查完成：${n} 个 MOD 中 ${updates} 个有可用更新。`);
+      } else {
+        setNotice(`检查完成：${n} 个 MOD 均为最新（或未接入更新约定）。`);
+      }
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      if (name === undefined) setCheckingAll(false);
+    }
+  }
+
   if (!config.gameDir) {
     return (
       <div className="h-full overflow-y-auto px-6 pt-6">
@@ -151,9 +176,14 @@ export function ModManagerPage(props: {
             登记整合包目录 → 扫描变体 → 安装到游戏 mods\ → 按正确参数启动。
           </p>
         </div>
-        <button className={btnGhost} onClick={() => setHelpOpen(true)}>
-          参数知识库
-        </button>
+        <div className="flex items-center gap-2">
+          <button className={btnGhost} disabled={checkingAll} onClick={() => void checkUpdates()}>
+            {checkingAll ? "检查中…" : "检查更新"}
+          </button>
+          <button className={btnGhost} onClick={() => setHelpOpen(true)}>
+            参数知识库
+          </button>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
@@ -211,6 +241,7 @@ export function ModManagerPage(props: {
                 record={config.installed[m.name]}
                 suggestedArgs={mods.data?.suggestedArgs[m.name] ?? ["-mod", m.name]}
                 scriptsCount={scriptsByMod.get(m.name)?.length}
+                updateState={config.updateState[m.name] ?? null}
                 onInstall={() => setInstallTarget(m)}
                 onUninstall={() => void askUninstall(m)}
                 onLaunch={(args) => void launch(m.name, args.slice(2))}
@@ -220,6 +251,8 @@ export function ModManagerPage(props: {
                   if (scripts) setScriptsTarget({ mod: m, scripts });
                 }}
                 onOpenDir={() => void invoke("d2r:openDir", { path: m.sourcePath })}
+                onCheckUpdate={() => void checkUpdates(m.name)}
+                onApplyUpdate={() => setUpdateTarget(m)}
               />
             ))}
           </div>
@@ -231,6 +264,21 @@ export function ModManagerPage(props: {
           mod={installTarget}
           installed={mods.data?.installed[installTarget.name] ?? false}
           onClose={() => setInstallTarget(null)}
+          onDone={() => {
+            mods.refresh();
+            props.refreshConfig();
+          }}
+        />
+      )}
+
+      {updateTarget && (
+        <UpdateDialog
+          modName={updateTarget.name}
+          displayName={updateTarget.displayName ?? updateTarget.name}
+          localVersion={config.updateState[updateTarget.name]?.localVersion ?? null}
+          remoteVersion={config.updateState[updateTarget.name]?.remoteVersion ?? null}
+          changelog={config.updateState[updateTarget.name]?.changelog ?? null}
+          onClose={() => setUpdateTarget(null)}
           onDone={() => {
             mods.refresh();
             props.refreshConfig();
