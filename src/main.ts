@@ -92,7 +92,10 @@ new AppBuilder(runtime, "com.zyj.d2rbox")
     app.commandDef(commandDefs.filterDuplicate);
     app.commandDef(commandDefs.filterRename);
     app.commandDef(commandDefs.filterDelete);
-    console.log("[d2rbox] registered 41 d2r:* commands");
+    app.commandDef(commandDefs.itemSources);
+    app.commandDef(commandDefs.itemView);
+    app.commandDef(commandDefs.postExitCheck);
+    console.log(`[d2rbox] registered ${Object.keys(commandDefs).length} d2r:* commands`);
   })
   .build()
   .run();

@@ -1020,6 +1020,16 @@ const itemView = defineCommand("d2r:itemView", {
           }[];
         }[];
       }
+    | {
+        /** 物品明细解不出（mod 自定义 SaveBits 位宽），头部身份已提取 */
+        kind: "character-partial";
+        name: string;
+        className: string | null;
+        level: number | null;
+        hardcore: boolean;
+        expansion: boolean;
+        message: string;
+      }
     | { kind: "error"; message: string },
   handler: async (args) => {
     // 只放行存档目录内的 .d2i/.d2s — 既是安全边界，也防把任意文件喂给解析器

@@ -158,6 +158,51 @@ describe("parseItemFile · errors", () => {
     expect(r.message).toContain("角色解析失败");
   });
 
+  it("falls back to header identity when char items are undecodable (v97 layout)", async () => {
+    // 合法 magic + v97 版本 + name@20 + status/class/level@36/40/43，
+    // 身体是垃圾字节 → charLib.read 抛错 → character-partial
+    const b = new Uint8Array(768);
+    const dv = new DataView(b.buffer);
+    dv.setUint32(0, 0xaa55aa55, true);
+    dv.setUint32(4, 97, true);
+    b.set(new TextEncoder().encode("败坏的女巫"), 20);
+    b[36] = 0b00100100; // hardcore + expansion
+    b[40] = 6; // Assassin
+    b[43] = 68;
+    const path = joinPath(saveDir, "legacy.d2s");
+    await tjs.writeFile(path, b);
+    const r = await parseItemFile(path);
+    expect(r.kind).toBe("character-partial");
+    if (r.kind !== "character-partial") return;
+    expect(r.name).toBe("败坏的女巫");
+    expect(r.className).toBe("Assassin");
+    expect(r.level).toBe(68);
+    expect(r.hardcore).toBe(true);
+    expect(r.expansion).toBe(true);
+    expect(r.message).toContain("mod 自定义");
+  });
+
+  it("reads v105 header layout (name@299, identity moved)", async () => {
+    const b = new Uint8Array(768);
+    const dv = new DataView(b.buffer);
+    dv.setUint32(0, 0xaa55aa55, true);
+    dv.setUint32(4, 105, true);
+    b[20] = 0b00100000; // expansion
+    b[24] = 3; // Paladin
+    b[27] = 38;
+    b.set(new TextEncoder().encode("圣骑一号"), 299);
+    const path = joinPath(saveDir, "rotw.d2s");
+    await tjs.writeFile(path, b);
+    const r = await parseItemFile(path);
+    expect(r.kind).toBe("character-partial");
+    if (r.kind !== "character-partial") return;
+    expect(r.name).toBe("圣骑一号");
+    expect(r.className).toBe("Paladin");
+    expect(r.level).toBe(38);
+    expect(r.hardcore).toBe(false);
+    expect(r.expansion).toBe(true);
+  });
+
   it("rejects other extensions up front", async () => {
     const path = joinPath(saveDir, "Settings.json");
     await tjs.writeFile(path, "{}");

@@ -313,6 +313,16 @@ export type ParseResult =
       expansion: boolean;
       groups: { where: WhereKey; items: ItemDto[] }[];
     }
+  | {
+      /** 物品明细解不出（mod 自定义属性位宽），但头部身份信息已提取 */
+      kind: "character-partial";
+      name: string;
+      className: string | null;
+      level: number | null;
+      hardcore: boolean;
+      expansion: boolean;
+      message: string;
+    }
   | { kind: "error"; message: string };
 
 const WHERE_ORDER: WhereKey[] = [
@@ -327,6 +337,72 @@ function groupCharItems(items: ItemDto[]): { where: WhereKey; items: ItemDto[] }
     by.set(it.where, list);
   }
   return WHERE_ORDER.filter((w) => by.has(w)).map((where) => ({ where, items: by.get(where)! }));
+}
+
+// ---------------------------------------------------------------------------
+// 头部降级解析（物品段解析失败时的身份提取）
+// ---------------------------------------------------------------------------
+
+/**
+ * 手读 .d2s 固定偏移头部。三种布局（偏移为字节）：
+ * - ≤v97（经典 D2R 2.4-）：name@20(16B) status@36 class@40 level@43
+ * - v98/v99：name 移至 267(16B)，status/class/level 不变
+ * - v105（RotW/Infernal，halbu v105.rs 布局）：整个区块前移——
+ *   status@20 class@24 level@27 name@299(48B)
+ * 返回 null 当 magic 不对或名字不可读（说明根本不是角色文件）。
+ */
+function parseCharIdentity(
+  bytes: Uint8Array,
+): { name: string; className: string | null; level: number | null; hardcore: boolean; expansion: boolean } | null {
+  try {
+    if (bytes.length < 8) return null;
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    if (dv.getUint32(0, true) !== 0xaa55aa55) return null;
+    const version = dv.getUint32(4, true);
+    let nameOff: number;
+    let nameLen: number;
+    let statusOff: number;
+    let classOff: number;
+    let levelOff: number;
+    if (version > 99) {
+      nameOff = 299;
+      nameLen = 48;
+      statusOff = 20;
+      classOff = 24;
+      levelOff = 27;
+    } else if (version > 0x61) {
+      nameOff = 267;
+      nameLen = 16;
+      statusOff = 36;
+      classOff = 40;
+      levelOff = 43;
+    } else {
+      nameOff = 20;
+      nameLen = 16;
+      statusOff = 36;
+      classOff = 40;
+      levelOff = 43;
+    }
+    if (bytes.length < nameOff + nameLen) return null;
+    const name = new TextDecoder("utf-8")
+      .decode(bytes.subarray(nameOff, nameOff + nameLen))
+      .replace(/\0/g, "")
+      .trim();
+    if (!name) return null;
+    const status = statusOff < bytes.length ? (bytes[statusOff] ?? 0) : 0;
+    const clsIdx = classOff < bytes.length ? (bytes[classOff] ?? -1) : -1;
+    const classes = (constants99 as { classes?: { n?: string }[] }).classes ?? [];
+    const level = levelOff < bytes.length ? (bytes[levelOff] ?? 0) : 0;
+    return {
+      name,
+      className: classes[clsIdx]?.n ?? (clsIdx >= 0 ? `职业${clsIdx}` : null),
+      level: level !== null && level > 0 && level <= 110 ? level : null,
+      hardcore: (status >>> 2 & 1) === 1,
+      expansion: (status >>> 5 & 1) === 1,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -395,6 +471,20 @@ export async function parseItemFile(path: string): Promise<ParseResult> {
         groups: groupCharItems(dtos),
       };
     } catch (err) {
+      // 物品段解不出（最常见：mod 自定义 SaveBits，如 7 页大仓库/扩展技能
+      // mod 给 nextexp、OSkill 等加了标准表没有的存档位宽）。降级为只报
+      // 头部身份信息——头部是固定偏移布局，手读即可，v105 布局经 halbu
+      // 与实机存档双重验证。
+      const partial = parseCharIdentity(bytes);
+      if (partial) {
+        return {
+          kind: "character-partial",
+          ...partial,
+          message:
+            "物品明细暂无法解析：该角色的物品使用了 mod 自定义的存档属性位宽" +
+            "（常见于大仓库 / 扩展技能类 mod）。角色档案本身完好，本工具未改动存档。",
+        };
+      }
       return {
         kind: "error",
         message: `角色解析失败（版本可能不受支持）：${err instanceof Error ? err.message : String(err)}`,
