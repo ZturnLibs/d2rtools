@@ -147,39 +147,44 @@ export function FilterPage(props: { config: AppConfigView; goToSettings: () => v
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">过滤管理</h2>
-          <p className="mt-1 text-xs text-neutral-500">
-            游戏自带掉落过滤预设（.fltr）· 勾选规则后保存，旧文件自动备份
-          </p>
+    /* 页头与横幅固定，左右两栏各自独立内滚，外壳不整体滚动 */
+    <div className="flex h-full min-w-0 flex-col space-y-5">
+      <header className="shrink-0 px-6 pt-6">
+        <div className="mx-auto flex max-w-6xl items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">过滤管理</h2>
+            <p className="mt-1 text-xs text-neutral-500">
+              游戏自带掉落过滤预设（.fltr）· 勾选规则后保存，旧文件自动备份
+            </p>
+          </div>
+          <button className={btnPrimary} onClick={() => void onImport()} disabled={busy}>
+            导入预设
+          </button>
         </div>
-        <button className={btnPrimary} onClick={() => void onImport()} disabled={busy}>
-          导入预设
-        </button>
       </header>
 
       {running.data?.running && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-300">
+        <div className="mx-6 shrink-0 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-300">
           游戏正在运行，修改将在下次启动游戏时生效。
         </div>
       )}
       {!props.config.gameDir && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-300">
+        <div className="mx-6 flex shrink-0 items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-300">
           <span>尚未设置游戏目录。过滤文件保存在存档目录，仍可管理，但建议先完成设置。</span>
           <button className={btnGhost} onClick={props.goToSettings}>
             去设置 →
           </button>
         </div>
       )}
-      {error && <Banner tone="red" text={error} onClose={() => setError(null)} />}
-      {info && <Banner tone="green" text={info} onClose={() => setInfo(null)} />}
-      {list.error && <Banner tone="red" text={list.error} onClose={list.refresh} />}
+      {error && <Banner className="mx-6 shrink-0" tone="red" text={error} onClose={() => setError(null)} />}
+      {info && <Banner className="mx-6 shrink-0" tone="green" text={info} onClose={() => setInfo(null)} />}
+      {list.error && <Banner className="mx-6 shrink-0" tone="red" text={list.error} onClose={list.refresh} />}
 
-      <div className="flex items-start gap-5">
-        {/* 左栏：预设列表 */}
-        <section className="w-80 shrink-0">
+      {/* 左右两栏填满剩余高度各自滚动；内容保持 max-w-6xl 与页头对齐 */}
+      <div className="min-h-0 flex-1 px-6 pb-6">
+        <div className="mx-auto flex h-full max-w-6xl gap-5">
+        {/* 左栏：预设列表（独立滚动） */}
+        <section className="min-h-0 w-80 shrink-0 overflow-y-auto">
           {list.data && !list.data.rootExists ? (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-amber-300">
               未找到存档目录：{list.data.root}
@@ -208,8 +213,8 @@ export function FilterPage(props: { config: AppConfigView; goToSettings: () => v
           )}
         </section>
 
-        {/* 右栏：规则 */}
-        <section className="min-w-0 flex-1">
+        {/* 右栏：规则（独立滚动） */}
+        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto">
           {!selected ? (
             <div className="rounded-xl border border-dashed border-neutral-800 px-4 py-10 text-center text-sm text-neutral-500">
               从左侧选择一个预设查看规则。
@@ -321,6 +326,7 @@ export function FilterPage(props: { config: AppConfigView; goToSettings: () => v
             </>
           )}
         </section>
+        </div>
       </div>
 
       {dialog === "backups" && selected && (
@@ -555,13 +561,13 @@ function NameDialog(props: {
   );
 }
 
-function Banner(props: { tone: "red" | "green"; text: string; onClose: () => void }) {
+function Banner(props: { tone: "red" | "green"; text: string; onClose: () => void; className?: string }) {
   const cls =
     props.tone === "red"
       ? "border-red-500/30 bg-red-500/10 text-red-300"
       : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
   return (
-    <div className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm ${cls}`}>
+    <div className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm ${cls} ${props.className ?? ""}`}>
       <span className="min-w-0 break-all">{props.text}</span>
       <button className="shrink-0 opacity-60 transition-opacity hover:opacity-100" onClick={props.onClose}>
         ✕

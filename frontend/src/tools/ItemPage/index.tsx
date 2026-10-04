@@ -117,7 +117,7 @@ export function ItemPage() {
 
   return (
     /* 页面自身填满可视区：页头固定，下方左右两栏各自内滚，外壳不整体滚动 */
-    <div className="flex h-full min-w-0 flex-col gap-5">
+    <div className="flex h-full min-w-0 flex-col gap-5 p-6">
       <header className="flex shrink-0 items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">物品清单</h2>

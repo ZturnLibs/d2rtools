@@ -97,11 +97,14 @@ export default function App() {
             </button>
           </div>
         )}
-        {/* 外壳永不整体滚动：物品清单自管双栏内滚，其余页面在页内滚动容器里走文档流 */}
-        <div className="min-h-0 flex-1 overflow-hidden p-6">
+        {/* 外壳永不整体滚动：物品清单/存档管家/过滤管理自管布局（页头固定+内滚），其余页面在页内滚动容器里走文档流。
+            内滚容器通栏到窗体右缘，滚动条贴边；各页自己负责补白。 */}
+        <div className="min-h-0 flex-1 overflow-hidden">
           {tab === "items" && <ItemPage />}
-          {tab !== "items" && (
-            <div className="h-full overflow-y-auto">
+          {tab === "saves" && <SavesPage config={cfg} refreshConfig={config.refresh} />}
+          {tab === "filter" && <FilterPage config={cfg} goToSettings={() => setTab("settings")} />}
+          {tab !== "items" && tab !== "saves" && tab !== "filter" && (
+            <div className="h-full overflow-y-auto p-6">
               {tab === "mods" && (
                 <ModManagerPage
                   config={cfg}
@@ -109,9 +112,7 @@ export default function App() {
                   goToSettings={() => setTab("settings")}
                 />
               )}
-              {tab === "saves" && <SavesPage config={cfg} refreshConfig={config.refresh} />}
               {tab === "vault" && <VaultPage goToSaves={() => setTab("saves")} />}
-              {tab === "filter" && <FilterPage config={cfg} goToSettings={() => setTab("settings")} />}
               {tab === "settings" && (
                 <SettingsPage
                   config={cfg}

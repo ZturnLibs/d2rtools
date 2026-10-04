@@ -137,21 +137,26 @@ export function SavesPage(props: { config: AppConfigView; refreshConfig: () => v
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">存档管家</h2>
-          <p className="mt-1 text-xs text-neutral-500">
-            整目录快照备份 / 镜像还原 · 还原与替换前自动创建回滚点
-          </p>
+    /* 页头固定，下方内容整体内滚；滚动容器通栏到窗体右缘，滚动条贴边 */
+    <div className="flex h-full min-w-0 flex-col">
+      <header className="shrink-0 px-6 pt-6">
+        <div className="mx-auto flex max-w-5xl items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">存档管家</h2>
+            <p className="mt-1 text-xs text-neutral-500">
+              整目录快照备份 / 镜像还原 · 还原与替换前自动创建回滚点
+            </p>
+          </div>
+          <button className={btnPrimary} onClick={() => setBackupOpen(true)} disabled={busy || !overview.data}>
+            立即备份
+          </button>
         </div>
-        <button className={btnPrimary} onClick={() => setBackupOpen(true)} disabled={busy || !overview.data}>
-          立即备份
-        </button>
       </header>
 
-      {error && <Banner tone="red" text={error} onClose={() => setError(null)} />}
-      {info && <Banner tone="green" text={info} onClose={() => setInfo(null)} />}
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6">
+        <div className="mx-auto max-w-5xl space-y-6">
+        {error && <Banner tone="red" text={error} onClose={() => setError(null)} />}
+        {info && <Banner tone="green" text={info} onClose={() => setInfo(null)} />}
 
       {/* prefs bar */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-neutral-800 bg-[#0d1017] px-5 py-3.5 text-sm">
@@ -276,6 +281,8 @@ export function SavesPage(props: { config: AppConfigView; refreshConfig: () => v
           }}
         />
       )}
+        </div>
+      </div>
     </div>
   );
 }
