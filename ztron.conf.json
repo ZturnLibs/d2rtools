@@ -4,7 +4,7 @@
   "identifier": "com.zyj.d2rbox",
   "appName": "D2RBox",
   "productName": "D2R工具箱",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "bundle": {
     "targets": ["nsis"],
     "icon": ["icon/app-icon.png", "icon/app.ico"]
