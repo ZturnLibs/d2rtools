@@ -116,8 +116,9 @@ export function ItemPage() {
   const totalFiles = groups.reduce((n, g) => n + g.stashes.length + g.characters.length, 0);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
-      <header className="flex items-start justify-between gap-4">
+    /* 页面自身填满可视区：页头固定，下方左右两栏各自内滚，外壳不整体滚动 */
+    <div className="flex h-full min-w-0 flex-col gap-5">
+      <header className="flex shrink-0 items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">物品清单</h2>
           <p className="mt-1 text-xs text-neutral-500">
@@ -130,20 +131,20 @@ export function ItemPage() {
       </header>
 
       {sources.error && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
+        <div className="shrink-0 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
           {sources.error}
         </div>
       )}
 
       {sources.data && totalFiles === 0 && (
-        <div className="rounded-xl border border-dashed border-neutral-800 px-5 py-8 text-center text-sm text-neutral-500">
+        <div className="shrink-0 rounded-xl border border-dashed border-neutral-800 px-5 py-8 text-center text-sm text-neutral-500">
           各存档目录下没有可解析的 .d2i / .d2s 文件。先启动一次游戏或 Mod 生成存档。
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[17rem_1fr]">
-        {/* 来源树 */}
-        <aside className="space-y-2.5">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[17rem_1fr]">
+        {/* 来源树：左栏独立滚动 */}
+        <aside className="min-h-0 space-y-2.5 overflow-y-auto pr-1 lg:pr-2">
           {groups.map((g) => {
             const open = openGroups.has(g.slot) || (file !== null && currentGroup?.slot === g.slot);
             return (
@@ -195,21 +196,23 @@ export function ItemPage() {
           })}
         </aside>
 
-        {/* 查看器 */}
-        <section className="min-w-0">
+        {/* 查看器：右栏内滚，标题/信息条固定在顶部 */}
+        <section className="flex min-h-0 min-w-0 flex-col">
           {!file && (
-            <div className="rounded-xl border border-dashed border-neutral-800 px-5 py-10 text-center text-sm text-neutral-500">
+            <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-neutral-800 px-5 py-10 text-center text-sm text-neutral-500">
               从左侧选择一个仓库或角色文件开始浏览。
             </div>
           )}
           {file && loading && (
-            <div className="animate-pulse rounded-xl border border-neutral-800 px-5 py-10 text-center text-sm text-neutral-500">
+            <div className="flex flex-1 animate-pulse items-center justify-center rounded-xl border border-neutral-800 px-5 py-10 text-center text-sm text-neutral-500">
               解析 {file.name} …
             </div>
           )}
           {file && !loading && loadErr && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm text-red-300">
-              {loadErr}
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm text-red-300">
+                {loadErr}
+              </div>
             </div>
           )}
           {file && !loading && parsed && <Viewer file={file} parsed={parsed} />}
@@ -250,11 +253,31 @@ function Viewer(props: { file: SelectedFile; parsed: ItemViewResult }) {
 
   if (parsed.kind === "error") {
     return (
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-300">
-        解析失败：{parsed.message}
-        <p className="mt-1 text-xs text-amber-500/80">
-          可能是未知存档版本或文件损坏；文件未被改动。
-        </p>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-300">
+          解析失败：{parsed.message}
+          <p className="mt-1 text-xs text-amber-500/80">
+            可能是未知存档版本、mod 自定义属性位宽或文件损坏；文件未被改动。
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (parsed.kind === "character-partial") {
+    return (
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-neutral-800 bg-[#0d1017] px-4 py-3 text-sm">
+          <span className="font-medium text-neutral-100">{parsed.name || props.file.name}</span>
+          {parsed.className && <span className="text-xs text-neutral-400">职业 {parsed.className}</span>}
+          {parsed.level !== null && <span className="text-xs text-neutral-400">等级 {parsed.level}</span>}
+          <span className={`rounded-full px-2 py-0.5 text-xs ${parsed.hardcore ? "bg-rose-500/15 text-rose-300" : "bg-sky-500/15 text-sky-300"}`}>
+            {parsed.hardcore ? "专家模式" : "普通模式"}
+          </span>
+        </div>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-300">
+          {parsed.message}
+        </div>
       </div>
     );
   }
@@ -276,7 +299,8 @@ function Viewer(props: { file: SelectedFile; parsed: ItemViewResult }) {
   const allItems = tabs.flatMap((t) => t.items);
 
   return (
-    <div className="space-y-4">
+    /* 信息条固定，ItemBrowser（tabs/筛选/表格）占满剩余高度内部滚动 */
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       {parsed.kind === "stash" ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-neutral-800 bg-[#0d1017] px-4 py-3 text-sm">
           <span className="font-medium text-neutral-100">{props.file.name}</span>
@@ -334,17 +358,17 @@ function ItemBrowser(props: { tabs: { key: string; label: string; items: ItemDto
   });
 
   return (
-    <div className="space-y-3">
-      {/* 分页 / 部位 tabs */}
-      <div className="flex flex-wrap gap-1.5">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {/* 分页 / 部位 tabs（固定） */}
+      <div className="flex shrink-0 flex-wrap gap-1.5">
         <TabChip active={tabKey === "all"} label={`全部 ${tabs.flatMap((t) => t.items).length}`} onClick={() => setTabKey("all")} />
         {tabs.map((t) => (
           <TabChip key={t.key} active={tabKey === t.key} label={`${t.label} ${t.items.length}`} onClick={() => setTabKey(t.key)} />
         ))}
       </div>
 
-      {/* 筛选 + 搜索 */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* 筛选 + 搜索（固定） */}
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1.5">
           <CatChip active={activeCategory === "all"} label="全部分类" onClick={() => setCategory("all")} />
           {categories.map((c) => (
@@ -360,20 +384,21 @@ function ItemBrowser(props: { tabs: { key: string; label: string; items: ItemDto
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-neutral-800 px-5 py-8 text-center text-sm text-neutral-500">
+        <div className="shrink-0 rounded-xl border border-dashed border-neutral-800 px-5 py-8 text-center text-sm text-neutral-500">
           {q || activeCategory !== "all" ? "没有匹配的物品。" : "此范围没有物品。"}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-neutral-800">
+        /* 表格区占满剩余高度，行滚动、表头吸顶 */
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-neutral-800">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#0d1017] text-xs text-neutral-500">
+            <thead className="text-xs text-neutral-500">
               <tr>
-                <th className="px-4 py-2.5 font-medium">名称</th>
-                <th className="px-3 py-2.5 font-medium">代码</th>
-                <th className="px-3 py-2.5 font-medium">数量</th>
-                <th className="px-3 py-2.5 font-medium">等级</th>
-                <th className="px-3 py-2.5 font-medium">标记</th>
-                <th className="px-4 py-2.5 font-medium">位置</th>
+                <th className="sticky top-0 z-10 bg-[#0d1017] px-4 py-2.5 font-medium">名称</th>
+                <th className="sticky top-0 z-10 bg-[#0d1017] px-3 py-2.5 font-medium">代码</th>
+                <th className="sticky top-0 z-10 bg-[#0d1017] px-3 py-2.5 font-medium">数量</th>
+                <th className="sticky top-0 z-10 bg-[#0d1017] px-3 py-2.5 font-medium">等级</th>
+                <th className="sticky top-0 z-10 bg-[#0d1017] px-3 py-2.5 font-medium">标记</th>
+                <th className="sticky top-0 z-10 bg-[#0d1017] px-4 py-2.5 font-medium">位置</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/70 bg-[#0b0e13]">

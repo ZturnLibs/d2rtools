@@ -82,7 +82,7 @@ export default function App() {
 
       <main className="flex min-w-0 flex-1 flex-col">
         {!cfg.gameDir && tab !== "settings" && (
-          <div className="flex items-center justify-between border-b border-amber-500/30 bg-amber-500/10 px-6 py-2.5 text-sm text-amber-300">
+          <div className="flex shrink-0 items-center justify-between border-b border-amber-500/30 bg-amber-500/10 px-6 py-2.5 text-sm text-amber-300">
             <span>尚未设置游戏目录，Mod 管理暂不可用。</span>
             <button className={btnGhost} onClick={() => setTab("settings")}>
               去设置 →
@@ -90,31 +90,36 @@ export default function App() {
           </div>
         )}
         {validation && !validation.hasD2R && tab !== "settings" && (
-          <div className="flex items-center justify-between border-b border-red-500/30 bg-red-500/10 px-6 py-2.5 text-sm text-red-300">
+          <div className="flex shrink-0 items-center justify-between border-b border-red-500/30 bg-red-500/10 px-6 py-2.5 text-sm text-red-300">
             <span>游戏目录下找不到 D2R.exe，请检查设置。</span>
             <button className={btnGhost} onClick={() => setTab("settings")}>
               去设置 →
             </button>
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">
-          {tab === "mods" && (
-            <ModManagerPage
-              config={cfg}
-              refreshConfig={config.refresh}
-              goToSettings={() => setTab("settings")}
-            />
-          )}
-          {tab === "saves" && <SavesPage config={cfg} refreshConfig={config.refresh} />}
-          {tab === "vault" && <VaultPage goToSaves={() => setTab("saves")} />}
+        {/* 外壳永不整体滚动：物品清单自管双栏内滚，其余页面在页内滚动容器里走文档流 */}
+        <div className="min-h-0 flex-1 overflow-hidden p-6">
           {tab === "items" && <ItemPage />}
-          {tab === "filter" && <FilterPage config={cfg} goToSettings={() => setTab("settings")} />}
-          {tab === "settings" && (
-            <SettingsPage
-              config={cfg}
-              validation={validation}
-              refreshConfig={config.refresh}
-            />
+          {tab !== "items" && (
+            <div className="h-full overflow-y-auto">
+              {tab === "mods" && (
+                <ModManagerPage
+                  config={cfg}
+                  refreshConfig={config.refresh}
+                  goToSettings={() => setTab("settings")}
+                />
+              )}
+              {tab === "saves" && <SavesPage config={cfg} refreshConfig={config.refresh} />}
+              {tab === "vault" && <VaultPage goToSaves={() => setTab("saves")} />}
+              {tab === "filter" && <FilterPage config={cfg} goToSettings={() => setTab("settings")} />}
+              {tab === "settings" && (
+                <SettingsPage
+                  config={cfg}
+                  validation={validation}
+                  refreshConfig={config.refresh}
+                />
+              )}
+            </div>
           )}
         </div>
       </main>
