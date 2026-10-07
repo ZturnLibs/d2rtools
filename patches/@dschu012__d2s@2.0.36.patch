@@ -1,0 +1,54 @@
+diff --git a/lib/d2/items.js b/lib/d2/items.js
+index 5ce6f62dabdc5a50c8fed3441b5b0f7b82e7f2a6..e60b486ecca7391920470b224b08172f736be745 100644
+--- a/lib/d2/items.js
++++ b/lib/d2/items.js
+@@ -703,10 +703,10 @@ function _readSimpleBits(item, reader, version, constants, config) {
+         item.type = item.type.trim().replace(/\0/g, "");
+         var details = _GetItemTXT(item, constants);
+         item.categories = details === null || details === void 0 ? void 0 : details.c;
+-        if (item === null || item === void 0 ? void 0 : item.categories.includes("Any Armor")) {
++        if (item === null || item === void 0 ? void 0 : item.categories?.includes("Any Armor")) {
+             item.type_id = ItemType.Armor;
+         }
+-        else if (item === null || item === void 0 ? void 0 : item.categories.includes("Weapon")) {
++        else if (item === null || item === void 0 ? void 0 : item.categories?.includes("Weapon")) {
+             item.type_id = ItemType.Weapon;
+             details = constants.weapon_items[item.type];
+         }
+diff --git a/lib/d2/stash.js b/lib/d2/stash.js
+index 8cc5ec815ca9645d5ec4f18bc08cf61ca0d72169..120a600bf1176cf66c6ab62d807ba40a6d6d2a0f 100644
+--- a/lib/d2/stash.js
++++ b/lib/d2/stash.js
+@@ -245,7 +245,7 @@ function write(data, constants, version, userConfig) {
+                     if (!(_i < _a.length)) return [3 /*break*/, 4];
+                     page = _a[_i];
+                     _c = (_b = writer).WriteArray;
+-                    return [4 /*yield*/, writeStashSection(data, page, constants, config)];
++                    return [4 /*yield*/, writeStashSection(data, page, constants, config, version)];
+                 case 2:
+                     _c.apply(_b, [_h.sent()]);
+                     _h.label = 3;
+@@ -294,7 +294,7 @@ function writeStashHeader(data) {
+         });
+     });
+ }
+-function writeStashSection(data, page, constants, userConfig) {
++function writeStashSection(data, page, constants, userConfig, version) {
+     return __awaiter(this, void 0, void 0, function () {
+         var writer, _a, _b, size;
+         return __generator(this, function (_c) {
+@@ -303,12 +303,12 @@ function writeStashSection(data, page, constants, userConfig) {
+                     writer = new bitwriter_1.BitWriter();
+                     writer.WriteUInt32(0xaa55aa55);
+                     writer.WriteUInt32(data.hardcore ? 0 : 1);
+-                    writer.WriteUInt32(0x62);
++                    writer.WriteUInt32(version || 0x62); // B2 fix: honor caller version (was hardcoded 0x62)
+                     writer.WriteUInt32(data.sharedGold);
+                     writer.WriteUInt32(0); // size of the sector, to be fixed later
+                     writer.WriteBytes(new Uint8Array(44).fill(0)); // empty
+                     _b = (_a = writer).WriteArray;
+-                    return [4 /*yield*/, items.writeItems(page.items, 0x62, constants, userConfig)];
++                    return [4 /*yield*/, items.writeItems(page.items, version || 0x62, constants, userConfig)];
+                 case 1:
+                     _b.apply(_a, [_c.sent()]);
+                     size = writer.offset;

@@ -53,3 +53,11 @@ export type HealthCheckResult = KnownCommands["d2r:healthCheck"]["result"];
 export type HealthCheckItemView = HealthCheckResult["items"][number];
 export type HealthStatusView = HealthCheckItemView["status"];
 export type HealthGroupView = HealthCheckItemView["group"];
+
+// — M11 大箱子合并/拆分 —
+export type StashMergePreviewView = KnownCommands["d2r:stashMergePreview"]["result"];
+export type StashMergeApplyResult = KnownCommands["d2r:stashMergeApply"]["result"];
+export type MergeTargetPlanView = StashMergePreviewView["targets"][number];
+export type MergePlannedItemView = MergeTargetPlanView["items"][number];
+export type MergeTargetSpecView = KnownCommands["d2r:stashMergePreview"]["args"]["targets"][number];
+export type MergeSourceSpecView = KnownCommands["d2r:stashMergePreview"]["args"]["sources"][number];

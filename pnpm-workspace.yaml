@@ -1,0 +1,4 @@
+# pnpm 10+ 配置（原 package.json 的 pnpm 字段迁移至此，pnpm 12 不再读取后者）
+patchedDependencies:
+  '@zturnlibs/ztron-runtime-ffi@0.3.8': patches/@zturnlibs__ztron-runtime-ffi@0.3.8.patch
+  '@dschu012/d2s@2.0.36': patches/@dschu012__d2s@2.0.36.patch

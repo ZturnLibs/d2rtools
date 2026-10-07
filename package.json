@@ -36,7 +36,8 @@
   },
   "pnpm": {
     "patchedDependencies": {
-      "@zturnlibs/ztron-runtime-ffi@0.3.8": "patches/@zturnlibs__ztron-runtime-ffi@0.3.8.patch"
+      "@zturnlibs/ztron-runtime-ffi@0.3.8": "patches/@zturnlibs__ztron-runtime-ffi@0.3.8.patch",
+      "@dschu012/d2s@2.0.36": "patches/@dschu012__d2s@2.0.36.patch"
     }
   }
 }

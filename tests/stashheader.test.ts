@@ -73,16 +73,16 @@ afterEach(async () => {
 });
 
 describe("readStashHeader", () => {
-  it("matches the d2s lib on pages / hardcore / gold", async () => {
+  it("matches the d2s lib on pages / hardcore / gold / version", async () => {
     const p = joinPath(saveDir, "x.d2i");
     await writeStashFixture(p, { hardcore: true, gold: 12345, pages: 3 });
     const h = await readStashHeader(p);
     expect(h).not.toBeNull();
-    // lib 写路径 version 硬编码 98=0x62（可行性文档 §5-B2），非 105
     expect(h!.hardcore).toBe(true); // u32@4==0 → 硬核（反着存）
     expect(h!.pageCount).toBe(3);
     expect(h!.sharedGold).toBe(12345);
-    expect(h!.version).toBe(98);
+    // M11 B2 补丁后 lib write 尊重传入版本（此前硬编码 98=0x62）
+    expect(h!.version).toBe(105);
     expect(h!.sectorSize).toBeGreaterThan(STASH_HEADER_BYTES);
   });
 

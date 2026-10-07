@@ -10,19 +10,21 @@ import { ModManagerPage } from "./tools/ModManager/ModManagerPage";
 import { SettingsPage } from "./tools/SettingsPage";
 import { SavesPage } from "./tools/SavesPage";
 import { VaultPage } from "./tools/VaultPage";
+import { StashOpsPage } from "./tools/StashOpsPage";
 import { FilterPage } from "./tools/FilterPage/FilterPage";
 import { ItemPage } from "./tools/ItemPage";
 import { HealthPage } from "./tools/HealthPage";
 import { StorePage } from "./tools/StorePage/StorePage";
 import { ExitGuardWatcher } from "./components/ExitGuardWatcher";
 
-type TabId = "mods" | "store" | "saves" | "vault" | "items" | "filter" | "health" | "settings";
+type TabId = "mods" | "store" | "saves" | "vault" | "stashops" | "items" | "filter" | "health" | "settings";
 
 const TABS: { id: TabId; label: string; hint: string }[] = [
   { id: "mods", label: "Mod 管理", hint: "整合包扫描 / 安装 / 启动" },
   { id: "store", label: "Mod 库", hint: "在线清单 / zip 导入 / 更新" },
   { id: "saves", label: "存档管家", hint: "快照备份 / 一键还原" },
   { id: "vault", label: "仓库向导", hint: "共享仓库 .d2i 替换" },
+  { id: "stashops", label: "大箱子工具", hint: "多仓合并 / 拆分写入" },
   { id: "items", label: "物品清单", hint: "仓库/角色浏览与搜索" },
   { id: "filter", label: "过滤管理", hint: "掉落过滤预设" },
   { id: "health", label: "环境体检", hint: "一键体检 / 修复指引" },
@@ -115,6 +117,7 @@ export default function App() {
           )}
           {tab === "store" && <StorePage config={cfg} goToSettings={() => setTab("settings")} />}
           {tab === "vault" && <VaultPage goToSaves={() => setTab("saves")} />}
+          {tab === "stashops" && <StashOpsPage goToSaves={() => setTab("saves")} />}
           {tab === "health" && <HealthPage config={cfg} goToSettings={() => setTab("settings")} />}
           {tab === "settings" && (
             <SettingsPage

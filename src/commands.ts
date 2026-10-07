@@ -72,6 +72,9 @@ import {
   readStashHeader,
   isStashSlot,
 } from "./services/stash.js";
+import type { StashSlot } from "./services/stash.js";
+import { planMerge, applyMerge } from "./services/stashmerge.js";
+import type { MergeSourceSpec, MergeTargetSpec } from "./services/stashmerge.js";
 import {
   listItemSources,
   parseItemFile,
@@ -861,6 +864,120 @@ const stashHeaderCmd = defineCommand("d2r:stashHeader", {
   handler: async (args) => readStashHeader(args.path),
 });
 
+// M11 — 仓库合并/拆分：预览与执行共用同一确定性计划（apply 重算并比对
+// 来源物品总数，来源被改动则拒绝）。明细见 services/stashmerge.ts
+function mergeArgs(args: {
+  sources: { path: string; kind: string }[];
+  targets: {
+    slot: string | null;
+    fileName: string | null;
+    pages: number;
+    hardcore: boolean;
+    sharedGold: number;
+  }[];
+  gridW?: number;
+  gridH?: number;
+}): {
+  sources: MergeSourceSpec[];
+  targets: MergeTargetSpec[];
+  grid: { w: number; h: number };
+} {
+  return {
+    sources: args.sources.map((s) => ({
+      path: s.path,
+      kind: s.kind === "character" ? ("character" as const) : ("stash" as const),
+    })),
+    targets: args.targets.map((t) => ({
+      slot: (t.slot === "soft" || t.slot === "hard" ? t.slot : null) as StashSlot | null,
+      fileName: t.fileName,
+      pages: t.pages,
+      hardcore: t.hardcore,
+      sharedGold: t.sharedGold,
+    })),
+    grid: { w: args.gridW || 10, h: args.gridH || 10 },
+  };
+}
+
+const stashMergePreviewCmd = defineCommand("d2r:stashMergePreview", {
+  args: {} as {
+    sources: { path: string; kind: string }[];
+    targets: {
+      slot: string | null;
+      fileName: string | null;
+      pages: number;
+      hardcore: boolean;
+      sharedGold: number;
+    }[];
+    gridW?: number;
+    gridH?: number;
+  },
+  result: {} as {
+    targets: {
+      label: string;
+      path: string;
+      exists: boolean;
+      hardcore: boolean;
+      sharedGold: number;
+      version: number;
+      items: {
+        name: string;
+        type: string;
+        quality: string;
+        category: string;
+        page: number;
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        qty: number | null;
+        ethereal: boolean;
+        sockets: number | null;
+        from: string;
+      }[];
+    }[];
+    carried: number;
+    placed: number;
+    unplaced: number;
+    unknownSize: number;
+    warnings: string[];
+  },
+  handler: async (args) => {
+    const m = mergeArgs(args);
+    const { view } = await planMerge(await saveRoot(), m.sources, m.targets, m.grid);
+    return view;
+  },
+});
+
+const stashMergeApplyCmd = defineCommand("d2r:stashMergeApply", {
+  args: {} as {
+    sources: { path: string; kind: string }[];
+    targets: {
+      slot: string | null;
+      fileName: string | null;
+      pages: number;
+      hardcore: boolean;
+      sharedGold: number;
+    }[];
+    gridW?: number;
+    gridH?: number;
+    expectCarried: number;
+    note?: string;
+  },
+  result: {} as {
+    backupId: string | null;
+    targets: { path: string; version: number; items: number; bytes: number }[];
+  },
+  handler: async (args) => {
+    const m = mergeArgs(args);
+    const config = await loadConfig();
+    return applyMerge(await saveRoot(), m.sources, m.targets, m.grid, {
+      backupKeep: config.backupKeep,
+      note: args.note,
+      expectCarried: args.expectCarried,
+    });
+  },
+});
+
 // ---------------------------------------------------------------------------
 // 作者脚本 (M3) — mods\<mod>\ 顶层 bat 的扫描与受控运行
 // ---------------------------------------------------------------------------
@@ -1610,6 +1727,8 @@ export const commandDefs = {
   stashReplace: stashReplaceCmd,
   stashConsistency: stashConsistencyCmd,
   stashHeader: stashHeaderCmd,
+  stashMergePreview: stashMergePreviewCmd,
+  stashMergeApply: stashMergeApplyCmd,
   modScripts,
   runScript,
   listCharacters: listCharactersCmd,

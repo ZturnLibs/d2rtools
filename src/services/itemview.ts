@@ -33,8 +33,9 @@ import { constants as constants99 } from "@dschu012/d2s/lib/data/versions/99_con
 
 let constantsReady = false;
 
-/** Register bundled v96/v99 data + the v105→v99 read-compat alias. */
-function ensureConstants(): void {
+/** Register bundled v96/v99 data + the v105→v99 read-compat alias.
+ *  Exported for stashmerge (M11) which reads raw items on its own. */
+export function ensureConstants(): void {
   if (constantsReady) return;
   // d2s.read looks up constants by char.header.version; without a
   // registration for the exact version it throws.
@@ -202,7 +203,7 @@ export interface ItemDto {
   identified: boolean;
 }
 
-interface RawItem {
+export interface RawItem {
   type?: string;
   personalized?: number | boolean;
   personalized_name?: string;
@@ -258,6 +259,11 @@ function whereOfChar(item: RawItem): { where: WhereKey; page: number } {
   if (loc === 4) return { where: "corpse", page: -1 };
   if (loc === 6) return { where: "merc", page: -1 };
   return { where: "other", page: -1 };
+}
+
+/** 展示 DTO（stashmerge 布局预览复用同一套命名/品质逻辑）。 */
+export function itemDtoOf(item: RawItem, where: WhereKey, page: number): ItemDto {
+  return toDto(item, where, page);
 }
 
 function toDto(item: RawItem, where: WhereKey, page: number): ItemDto {
@@ -493,4 +499,51 @@ export async function parseItemFile(path: string): Promise<ParseResult> {
   }
 
   return { kind: "error", message: "仅支持 .d2i 仓库与 .d2s 角色文件" };
+}
+
+// ---------------------------------------------------------------------------
+// 原样读取（M11 合并/拆分）：返回 lib 原始物品对象（写路径需要完整字段做
+// 字节级重序列化），与 parseItemFile 的 DTO 视图互补。解析失败直接抛错，
+// 由合并服务转成"该来源不可合并"的告警。
+// ---------------------------------------------------------------------------
+
+export interface RawStashRead {
+  hardcore: boolean;
+  sharedGold: number;
+  /** 每页的原始物品对象数组（lib read 输出，含 enhance 展开字段） */
+  pages: RawItem[][];
+}
+
+export async function readRawStash(path: string): Promise<RawStashRead> {
+  ensureConstants();
+  const bytes = await tjs.readFile(path);
+  const stash = (await stashLib.read(bytes, constants99, 99, {})) as {
+    hardcore?: boolean;
+    sharedGold?: number;
+    pages?: { items?: RawItem[] }[];
+  };
+  return {
+    hardcore: stash.hardcore === true,
+    sharedGold: typeof stash.sharedGold === "number" ? stash.sharedGold : 0,
+    pages: (stash.pages ?? []).map((p) => p.items ?? []),
+  };
+}
+
+export interface RawCharacterRead {
+  items: RawItem[];
+}
+
+export async function readRawCharacter(path: string): Promise<RawCharacterRead> {
+  ensureConstants();
+  const bytes = await tjs.readFile(path);
+  const char = await charLib.read(bytes, constants99);
+  const c = char as unknown as Record<string, unknown>;
+  return {
+    items: [
+      ...((c.items ?? []) as RawItem[]),
+      ...((c.corpse_items ?? []) as RawItem[]),
+      ...((c.merc_items ?? []) as RawItem[]),
+      ...(c.golem_item ? [c.golem_item as RawItem] : []),
+    ],
+  };
 }

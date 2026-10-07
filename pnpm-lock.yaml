@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
+  '@dschu012/d2s@2.0.36':
+    hash: 5gpefded3ceufickosgjwghcsa
+    path: patches/@dschu012__d2s@2.0.36.patch
   '@zturnlibs/ztron-runtime-ffi@0.3.8':
     hash: cgo4lpe2opg4uyjkv5plkerpm4
     path: patches/@zturnlibs__ztron-runtime-ffi@0.3.8.patch
@@ -15,7 +18,7 @@ importers:
     dependencies:
       '@dschu012/d2s':
         specifier: ^2.0.36
-        version: 2.0.36
+        version: 2.0.36(patch_hash=5gpefded3ceufickosgjwghcsa)
       '@zturnlibs/ztron-api':
         specifier: 0.3.8
         version: 0.3.8
@@ -1148,7 +1151,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@dschu012/d2s@2.0.36': {}
+  '@dschu012/d2s@2.0.36(patch_hash=5gpefded3ceufickosgjwghcsa)': {}
 
   '@esbuild/aix-ppc64@0.25.12':
     optional: true
