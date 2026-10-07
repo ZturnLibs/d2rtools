@@ -7,9 +7,9 @@
 **面向中文 D2R 整合包玩家的桌面工具箱 —— 装 Mod、记参数、管存档、保仓库，一键直达游戏。**
 
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)](../../releases)
-[![Version](https://img.shields.io/badge/version-0.1.0-orange)](ztron.conf.json)
+[![Version](https://img.shields.io/badge/version-0.2.0-orange)](ztron.conf.json)
 [![Built with](https://img.shields.io/badge/built%20with-ztron%20·%20React%2019-7c3aed)](#技术架构)
-[![Milestones](https://img.shields.io/badge/milestones-M1%20·%20M2%20·%20M3%20%E2%9C%94-success)](#里程碑)
+[![Milestones](https://img.shields.io/badge/milestones-M1%E2%80%93M11%20%E2%9C%94-success)](#里程碑)
 [![License](https://img.shields.io/badge/license-%E8%87%AA%E5%AE%9A%E4%B9%89%C2%B7%E5%95%86%E7%94%A8%E9%9C%80%E6%8E%88%E6%9D%83-red)](LICENSE.md)
 
 </div>
@@ -130,7 +130,14 @@ d2r-research/
 | **M1** | 工具箱骨架 + Mod 库 + 一键启动（6 变体全通过实机验收） | ✅ `358e40a` |
 | **M2** | 存档管家 + 大仓库向导（备份/还原/自动备份 · stash 警告+回滚） | ✅ `a063979` |
 | **M3** | 作者脚本受控运行 + 存档转移 + NSIS 打包 | ✅ `d4b1c4a` |
-| 后续 | lootfilter/.fltr 管理 · Settings.json 备份 · mod 更新检测 | 🗺️ 规划中 |
+| **M5** | 掉落过滤管理（.fltr 预设原生管理 + 工具页） | ✅ |
+| **M6** | 存档管家扩容（zip 压缩备份 + config 配置快照槽 + 占用显示） | ✅ |
+| **M7** | 物品清单只读页 + 存档保护默认动作化 | ✅ |
+| **M8** | 环境体检页（14 项一键体检 + 修复指引 + 复制报告） | ✅ |
+| **M9** | mod 更新三件套（在线清单 + zip 导入/作者直链 + 更新检测） | ✅ |
+| **M10** | 大仓库向导增强（替换前物品搬家提示 + HC/SC 一致性检测） | ✅ `dd45bea` |
+| **M11** | 大箱子合并/拆分写入（多源多目标装箱 + 护栏写管线 + d2s 包 B2 修复） | ✅ `3d8c11c` |
+| 后续 | .fltr 中文预设订阅 · 配方导出/导入 · 符文之语速查 · Grail 追踪 · Nexus key 集成 · 补丁兼容矩阵 | 🗺️ 规划中 |
 
 ## 授权协议
 

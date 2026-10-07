@@ -2,3 +2,7 @@
 patchedDependencies:
   '@zturnlibs/ztron-runtime-ffi@0.3.8': patches/@zturnlibs__ztron-runtime-ffi@0.3.8.patch
   '@dschu012/d2s@2.0.36': patches/@dschu012__d2s@2.0.36.patch
+
+# 允许 esbuild 安装脚本（vite 依赖其二进制 postinstall）；pnpm 12 用 allowBuilds 取代旧的 onlyBuiltDependencies
+allowBuilds:
+  esbuild: true
